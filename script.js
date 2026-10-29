@@ -1,5 +1,6 @@
 /* =========================================================
-   SISTEMA DE LEVANTAMENTO — Firebase Realtime Database v2
+   SISTEMA DE LEVANTAMENTO — Firebase Realtime Database v3
+   + CONTÊINERES (cada levantamento separado por contêiner)
    ========================================================= */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -7,9 +8,6 @@ import {
   getDatabase, ref, set, update, remove, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* =========================================================
-   🔥 SUAS CREDENCIAIS
-   ========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDeMwUeu-3chnjCpxzTdySFFAkv1s65sw8",
   authDomain: "levantamento-epi.firebaseapp.com",
@@ -26,18 +24,23 @@ const db = getDatabase(app);
 /* =========================================================
    ESTADO GLOBAL
    ========================================================= */
-let catalogo = [];
+let containers = [];              // [{ id, codigo, nome, local }]
+let catalogo = [];                // cada item tem containerId
 let movimentacoes = [];
-let levantamentos = [];      // Levantamentos salvos (contagens finalizadas)
+let levantamentos = [];
 let filtroCategoria = 'todos';
 let filtroHistorico = 'todos';
 let editingIndex = -1;
+let editingContainerIndex = -1;
 let movTipoAtual = null;
 let diaSelecionado = null;
 
+// Contêiner ativo (persistido no localStorage)
+let activeContainerId = localStorage.getItem('activeContainerId') || null;
+
 // Modo contagem
 let modoContagem = false;
-let contagem = [];           // [{ codigo, quantidadeContada, estoqueSnapshot, ... }]
+let contagem = [];
 let relatorioPendente = null;
 
 /* =========================================================
@@ -56,6 +59,8 @@ const sumRegistros     = $('sumRegistros');
 const sumItens         = $('sumItens');
 const sumUniformes     = $('sumUniformes');
 const sumEpis          = $('sumEpis');
+const sumContainer     = $('sumContainer');
+const sumContainerCode = $('sumContainerCode');
 
 const openFormBtn      = $('openFormBtn');
 const openFormCount    = $('openFormCount');
@@ -77,6 +82,7 @@ const unidadeInput     = $('unidade');
 const tamanhoInput     = $('tamanho');
 const corInput         = $('cor');
 const observacaoInput  = $('observacao');
+const containerItem    = $('containerItem');
 const addBtn           = $('addBtn');
 const cancelEditBtn    = $('cancelEditBtn');
 
@@ -103,7 +109,6 @@ const movSubmitBtn     = $('movSubmitBtn');
 // Contagem
 const tabNovo              = $('tabNovo');
 const tabContagem          = $('tabContagem');
-const startCountBar        = $('startCountBar');
 const startCountBtn        = $('startCountBtn');
 const cancelCountBtn       = $('cancelCountBtn');
 const doneCountBtn         = $('doneCountBtn');
@@ -119,6 +124,7 @@ const scanFeedback         = $('scanFeedback');
 const countListBody        = $('countListBody');
 const countEmpty           = $('countEmpty');
 const countTotalItens      = $('countTotalItens');
+const countContainerName   = $('countContainerName');
 
 // Relatório
 const modalRelatorioOverlay = $('modalRelatorioOverlay');
@@ -151,6 +157,23 @@ const importCatalogBtn  = $('importCatalogBtn');
 const importCatalogFile = $('importCatalogFile');
 const templateBtn       = $('templateBtn');
 const themeToggleBtn    = $('themeToggleBtn');
+
+// Contêineres
+const openContainersBtn     = $('openContainersBtn');
+const containersCount       = $('containersCount');
+const modalContainersOverlay = $('modalContainersOverlay');
+const closeContainersBtn    = $('closeContainersBtn');
+const containerForm         = $('containerForm');
+const containerCodigo       = $('containerCodigo');
+const containerNome         = $('containerNome');
+const containerLocal        = $('containerLocal');
+const containerSubmitBtn    = $('containerSubmitBtn');
+const cancelContainerEditBtn = $('cancelContainerEditBtn');
+const containerListBody     = $('containerListBody');
+const containerListCount    = $('containerListCount');
+const containerEmpty        = $('containerEmpty');
+const activeContainerSelect = $('activeContainerSelect');
+const activeContainerName   = $('activeContainerName');
 
 /* =========================================================
    UTILITÁRIOS
@@ -194,11 +217,6 @@ function formatDateLong(dateStr) {
   return `${d} de ${meses[Number(m) - 1]} de ${y}`;
 }
 
-function formatDateTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
-
 /* =========================================================
    TOASTS
    ========================================================= */
@@ -219,16 +237,48 @@ function showToast(message, type = 'success') {
   }, 2800);
 }
 
-/* =========================================================
-   STATUS
-   ========================================================= */
 function setCloudStatus(status, text) {
   cloudStatus.className = `fas ${status === 'online' ? 'fa-cloud online' : status === 'offline' ? 'fa-cloud offline' : 'fa-cloud syncing'}`;
   cloudStatusText.textContent = text;
 }
 
 /* =========================================================
-   CÁLCULO DE ESTOQUE
+   CONTÊINER ATIVO
+   ========================================================= */
+function getActiveContainer() {
+  return containers.find(c => c.id === activeContainerId) || null;
+}
+
+function setActiveContainer(id) {
+  activeContainerId = id || null;
+  if (activeContainerId) localStorage.setItem('activeContainerId', activeContainerId);
+  else localStorage.removeItem('activeContainerId');
+
+  const c = getActiveContainer();
+  activeContainerName.textContent = c ? `${c.codigo} — ${c.nome}` : 'Nenhum selecionado';
+  if (sumContainer) sumContainer.textContent = c ? c.nome : '—';
+  if (sumContainerCode) sumContainerCode.textContent = c ? `código ${c.codigo}` : 'código —';
+  if (countContainerName) countContainerName.textContent = c ? `${c.codigo} — ${c.nome}` : '—';
+
+  // Atualiza selects
+  [activeContainerSelect, containerItem].forEach(sel => {
+    if (!sel) return;
+    sel.value = activeContainerId || '';
+  });
+
+  // Bloqueia ações se não há contêiner
+  const blocked = !c;
+  [openFormBtn, startCountBtn, btnEntrada, btnSaida, exportExcelBtn, printBtn].forEach(b => {
+    if (!b) return;
+    b.classList.toggle('disabled-area', blocked);
+  });
+
+  renderCatalogo();
+  renderHistorico();
+}
+
+/* =========================================================
+   CÁLCULO DE ESTOQUE (considera movimentações do item)
    ========================================================= */
 function calcularEstoque(codigo) {
   const produto = catalogo.find(p => p.codigo === codigo);
@@ -242,7 +292,7 @@ function calcularEstoque(codigo) {
       const q = Number(m.quantidade) || 0;
       if (m.tipo === 'entrada') saldo += q;
       else if (m.tipo === 'saida') saldo -= q;
-      else if (m.tipo === 'ajuste') saldo += q; // ajuste: q pode ser + ou -
+      else if (m.tipo === 'ajuste') saldo += q;
     });
 
   return saldo;
@@ -267,10 +317,32 @@ function calcularEstoqueAteData(codigo, dataLimite) {
 }
 
 /* =========================================================
-   FIREBASE — LISTENERS
+   FIREBASE LISTENERS
    ========================================================= */
 function iniciarListeners() {
   setCloudStatus('syncing', 'Conectando...');
+
+  onValue(ref(db, 'containers'), (snap) => {
+    const data = snap.val() || {};
+    containers = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+    containers.sort((a, b) => normalize(a.codigo).localeCompare(normalize(b.codigo)));
+
+    renderContainerSelects();
+    renderContainerList();
+    if (containersCount) containersCount.textContent = containers.length;
+
+    // Se o contêiner ativo sumiu, limpa
+    if (activeContainerId && !containers.some(c => c.id === activeContainerId)) {
+      setActiveContainer(null);
+    } else {
+      setActiveContainer(activeContainerId);
+    }
+
+    setCloudStatus('online', 'Conectado');
+  }, (err) => {
+    console.error(err);
+    setCloudStatus('offline', 'Erro de conexão');
+  });
 
   onValue(ref(db, 'catalogo'), (snap) => {
     const data = snap.val() || {};
@@ -278,10 +350,6 @@ function iniciarListeners() {
     renderCatalogo();
     renderModalList();
     atualizarBadges();
-    setCloudStatus('online', 'Conectado');
-  }, (err) => {
-    console.error(err);
-    setCloudStatus('offline', 'Erro de conexão');
   });
 
   onValue(ref(db, 'movimentacoes'), (snap) => {
@@ -291,9 +359,6 @@ function iniciarListeners() {
     renderCatalogo();
     renderHistorico();
     atualizarBadges();
-  }, (err) => {
-    console.error(err);
-    showToast('Erro ao carregar movimentações.', 'error');
   });
 
   onValue(ref(db, 'levantamentos'), (snap) => {
@@ -302,17 +367,152 @@ function iniciarListeners() {
     levantamentos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderHistorico();
     atualizarBadges();
-  }, (err) => {
-    console.error(err);
   });
 }
 
 /* =========================================================
-   RENDER CATÁLOGO
+   CONTÊINERES — RENDER
+   ========================================================= */
+function renderContainerSelects() {
+  const opts = containers.map(c =>
+    `<option value="${c.id}">${escapeHtml(c.codigo)} — ${escapeHtml(c.nome)}</option>`
+  ).join('');
+
+  if (activeContainerSelect) {
+    activeContainerSelect.innerHTML = `<option value="">— Selecione um contêiner —</option>${opts}`;
+    activeContainerSelect.value = activeContainerId || '';
+  }
+  if (containerItem) {
+    containerItem.innerHTML = `<option value="">Selecione...</option>${opts}`;
+  }
+}
+
+function renderContainerList() {
+  if (!containerListBody) return;
+  containerListCount.textContent = containers.length;
+  containerListBody.innerHTML = '';
+
+  if (containers.length === 0) {
+    containerEmpty.style.display = 'block';
+    return;
+  }
+  containerEmpty.style.display = 'none';
+
+  containers.forEach((c, idx) => {
+    const qtdItens = catalogo.filter(p => p.containerId === c.id).length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="badge-codigo">${escapeHtml(c.codigo)}</span></td>
+      <td>${escapeHtml(c.nome)}</td>
+      <td>${c.local ? escapeHtml(c.local) : '<span class="tag-sem">—</span>'}</td>
+      <td><strong>${qtdItens}</strong></td>
+      <td class="col-actions">
+        <div class="actions-cell">
+          <button class="btn-icon edit" data-index="${idx}" title="Editar" type="button"><i class="fas fa-edit"></i></button>
+          <button class="btn-icon delete" data-index="${idx}" title="Excluir" type="button"><i class="fas fa-trash"></i></button>
+        </div>
+      </td>
+    `;
+    containerListBody.appendChild(tr);
+  });
+
+  containerListBody.querySelectorAll('.btn-icon.edit').forEach(btn =>
+    btn.addEventListener('click', () => editContainer(Number(btn.dataset.index))));
+  containerListBody.querySelectorAll('.btn-icon.delete').forEach(btn =>
+    btn.addEventListener('click', () => deleteContainer(Number(btn.dataset.index))));
+}
+
+function openContainersModal() {
+  modalContainersOverlay.classList.add('active');
+  renderContainerList();
+  setTimeout(() => containerCodigo.focus(), 100);
+}
+
+function closeContainersModal() {
+  modalContainersOverlay.classList.remove('active');
+  resetContainerForm();
+}
+
+function resetContainerForm() {
+  containerForm.reset();
+  editingContainerIndex = -1;
+  containerSubmitBtn.innerHTML = '<i class="fas fa-plus"></i> Cadastrar Contêiner';
+  cancelContainerEditBtn.style.display = 'none';
+}
+
+function editContainer(index) {
+  const c = containers[index];
+  if (!c) return;
+  containerCodigo.value = c.codigo;
+  containerNome.value = c.nome;
+  containerLocal.value = c.local || '';
+  editingContainerIndex = index;
+  containerSubmitBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+  cancelContainerEditBtn.style.display = 'inline-flex';
+  containerCodigo.focus();
+}
+
+async function deleteContainer(index) {
+  const c = containers[index];
+  if (!c) return;
+
+  const qtdItens = catalogo.filter(p => p.containerId === c.id).length;
+  const msg = qtdItens > 0
+    ? `Excluir contêiner "${c.nome}"?\n\nATENÇÃO: ${qtdItens} item(ns) pertencem a ele. Eles ficarão órfãos (sem contêiner).`
+    : `Excluir contêiner "${c.nome}"?`;
+  if (!confirm(msg)) return;
+
+  try {
+    await remove(ref(db, 'containers/' + c.id));
+    if (activeContainerId === c.id) setActiveContainer(null);
+    showToast('Contêiner excluído!', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao excluir.', 'error');
+  }
+}
+
+async function handleContainerSubmit(e) {
+  e.preventDefault();
+  const codigo = containerCodigo.value.trim();
+  const nome = containerNome.value.trim();
+  const local = containerLocal.value.trim();
+
+  if (!codigo) { showToast('Informe o código.', 'error'); containerCodigo.focus(); return; }
+  if (!nome) { showToast('Informe o nome.', 'error'); containerNome.focus(); return; }
+
+  const dup = containers.some((c, i) =>
+    i !== editingContainerIndex && normalize(c.codigo) === normalize(codigo)
+  );
+  if (dup) { showToast('Já existe um contêiner com esse código.', 'error'); return; }
+
+  try {
+    if (editingContainerIndex >= 0) {
+      const c = containers[editingContainerIndex];
+      await update(ref(db, 'containers/' + c.id), { codigo, nome, local });
+      showToast('Contêiner atualizado!', 'success');
+      resetContainerForm();
+    } else {
+      const id = uid();
+      await set(ref(db, 'containers/' + id), { codigo, nome, local, criadoEm: new Date().toISOString() });
+      showToast('Contêiner cadastrado!', 'success');
+      resetContainerForm();
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao salvar contêiner.', 'error');
+  }
+}
+
+/* =========================================================
+   CATÁLOGO — RENDER (filtrado pelo contêiner ativo)
    ========================================================= */
 function renderCatalogo() {
   const term = normalize(searchCatalogo.value);
-  let lista = catalogo;
+  const active = getActiveContainer();
+
+  // Filtra primeiro pelo contêiner ativo
+  let lista = active ? catalogo.filter(p => p.containerId === active.id) : [];
 
   if (filtroCategoria !== 'todos') lista = lista.filter(p => p.categoria === filtroCategoria);
 
@@ -329,11 +529,24 @@ function renderCatalogo() {
   totalRegistros.textContent = lista.length;
   mainBody.innerHTML = '';
 
+  if (!active) {
+    emptyMain.style.display = 'flex';
+    emptyMain.innerHTML = `
+      <i class="fas fa-cubes-stacked"></i>
+      <strong>Nenhum contêiner selecionado</strong>
+      <span>Escolha um contêiner na barra acima para ver os itens.</span>
+    `;
+    atualizarResumo();
+    return;
+  }
+
   if (lista.length === 0) {
     emptyMain.style.display = 'flex';
-    emptyMain.innerHTML = catalogo.length === 0
-      ? `<i class="fas fa-box-open"></i><strong>Nenhum item cadastrado</strong><span>Clique em "+ Cadastrar Item" para começar.</span>`
-      : `<i class="fas fa-search"></i><strong>Nenhum resultado encontrado</strong><span>Tente ajustar a pesquisa ou os filtros.</span>`;
+    emptyMain.innerHTML = `
+      <i class="fas fa-box-open"></i>
+      <strong>Nenhum item neste contêiner</strong>
+      <span>Clique em "+ Cadastrar Item" para adicionar ao contêiner ${escapeHtml(active.codigo)}.</span>
+    `;
     atualizarResumo();
     return;
   }
@@ -392,28 +605,39 @@ function renderCatalogo() {
 }
 
 function atualizarResumo() {
-  sumRegistros.textContent = catalogo.length;
+  const active = getActiveContainer();
+  const listaCat = active ? catalogo.filter(p => p.containerId === active.id) : [];
+
+  sumRegistros.textContent = listaCat.length;
 
   let total = 0;
-  catalogo.forEach(p => { total += calcularEstoque(p.codigo); });
+  listaCat.forEach(p => { total += calcularEstoque(p.codigo); });
   sumItens.textContent = total;
 
-  sumUniformes.textContent = catalogo.filter(p => p.categoria === 'Uniforme').length;
-  sumEpis.textContent = catalogo.filter(p => p.categoria === 'EPI').length;
-  if (openFormCount) openFormCount.textContent = catalogo.length;
+  sumUniformes.textContent = listaCat.filter(p => p.categoria === 'Uniforme').length;
+  sumEpis.textContent = listaCat.filter(p => p.categoria === 'EPI').length;
+  if (openFormCount) openFormCount.textContent = listaCat.length;
 }
 
 function atualizarBadges() {
-  if (tabBadgeCatalogo) tabBadgeCatalogo.textContent = catalogo.length;
-  const total = new Set([...movimentacoes.map(m => m.data), ...levantamentos.map(l => l.data)]).size;
+  const active = getActiveContainer();
+  const listaCat = active ? catalogo.filter(p => p.containerId === active.id) : [];
+  if (tabBadgeCatalogo) tabBadgeCatalogo.textContent = listaCat.length;
+
+  const movsAtivos = active ? movimentacoes.filter(m => m.containerId === active.id) : [];
+  const levsAtivos = active ? levantamentos.filter(l => l.containerId === active.id) : [];
+  const total = new Set([...movsAtivos.map(m => m.data), ...levsAtivos.map(l => l.data)]).size;
   if (tabBadgeLevantamentos) tabBadgeLevantamentos.textContent = total;
 }
 
 /* =========================================================
-   MODAL CADASTRO
+   MODAL CADASTRO DE ITEM
    ========================================================= */
 function openModal() {
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner primeiro.', 'error'); return; }
   modalOverlay.classList.add('active');
+  if (containerItem) containerItem.value = active.id;
   renderModalList();
   setTimeout(() => codigoInput.focus(), 100);
 }
@@ -432,6 +656,8 @@ function resetForm() {
   cancelEditBtn.style.display = 'none';
   const chk = $('salvarContinuar');
   if (chk) chk.checked = false;
+  const active = getActiveContainer();
+  if (containerItem && active) containerItem.value = active.id;
 }
 
 function validateForm() {
@@ -439,10 +665,12 @@ function validateForm() {
   const categoria = categoriaInput.value;
   const nome = nomeInput.value.trim();
   const qtdRaw = quantidadeInput.value.trim();
+  const contId = containerItem ? containerItem.value : '';
 
   if (!codigo) { showToast('Informe o Código.', 'error'); codigoInput.focus(); return null; }
   if (!categoria) { showToast('Selecione uma Categoria.', 'error'); categoriaInput.focus(); return null; }
   if (!nome) { showToast('Informe o Nome.', 'error'); nomeInput.focus(); return null; }
+  if (!contId) { showToast('Selecione um Contêiner.', 'error'); containerItem.focus(); return null; }
 
   let quantidade = 0;
   if (qtdRaw !== '') {
@@ -455,6 +683,7 @@ function validateForm() {
 
   return {
     codigo, categoria, nome,
+    containerId: contId,
     estoqueInicial: quantidade,
     conteudo: conteudoInput.value.trim(),
     unidade: unidadeInput.value || 'UN',
@@ -480,8 +709,9 @@ async function handleSubmit(e) {
     } else {
       const dup = catalogo.some(p =>
         p.codigo === data.codigo && p.tamanho === data.tamanho && p.cor === data.cor
+        && p.containerId === data.containerId
       );
-      if (dup) { showToast('Item duplicado (mesmo código/tam/cor).', 'error'); return; }
+      if (dup) { showToast('Item duplicado (mesmo código/tam/cor no contêiner).', 'error'); return; }
 
       const novoId = uid();
       await set(ref(db, 'catalogo/' + novoId), { ...data, criadoEm: new Date().toISOString() });
@@ -489,10 +719,12 @@ async function handleSubmit(e) {
 
       if (continuar) {
         const cat = categoriaInput.value, un = unidadeInput.value,
-              cr = corInput.value, ob = observacaoInput.value;
+              cr = corInput.value, ob = observacaoInput.value,
+              ct = containerItem.value;
         form.reset();
         categoriaInput.value = cat; unidadeInput.value = un;
         corInput.value = cr; observacaoInput.value = ob;
+        containerItem.value = ct;
         quantidadeInput.value = 0;
         codigoInput.focus();
       } else resetForm();
@@ -515,6 +747,7 @@ function editCatalogo(index) {
   tamanhoInput.value = (p.tamanho && p.tamanho !== 'Sem tamanho') ? p.tamanho : '';
   corInput.value = p.cor === 'Sem cor' ? '' : p.cor;
   observacaoInput.value = p.observacao || '';
+  if (containerItem) containerItem.value = p.containerId || '';
   editingIndex = index;
   modalTitle.textContent = 'Editar Item';
   addBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
@@ -536,6 +769,7 @@ function duplicarItem(index) {
   tamanhoInput.value = '';
   corInput.value = p.cor === 'Sem cor' ? '' : p.cor;
   observacaoInput.value = p.observacao || '';
+  if (containerItem) containerItem.value = p.containerId || '';
   editingIndex = -1;
   modalTitle.textContent = 'Duplicar Item';
   addBtn.innerHTML = '<i class="fas fa-copy"></i> Criar Cópia';
@@ -564,25 +798,27 @@ async function deleteCatalogo(index) {
 }
 
 /* =========================================================
-   MODAL LISTA
+   MODAL LISTA (filtra pelo contêiner ativo)
    ========================================================= */
 function renderModalList() {
+  const active = getActiveContainer();
+  const base = active ? catalogo.filter(p => p.containerId === active.id) : [];
   const term = normalize(modalSearchInput.value);
-  let lista = catalogo;
+  let lista = base;
   if (term) {
-    lista = catalogo.filter(p => {
+    lista = base.filter(p => {
       const haystack = [p.codigo, p.categoria, p.nome, p.tamanho, p.cor, p.unidade, p.observacao, p.conteudo]
         .map(normalize).join(' | ');
       return haystack.includes(term);
     });
   }
-  modalListCount.textContent = catalogo.length;
+  modalListCount.textContent = base.length;
   modalListBody.innerHTML = '';
 
   if (lista.length === 0) {
     modalEmpty.style.display = 'block';
-    modalEmpty.textContent = catalogo.length === 0
-      ? 'Nenhum item cadastrado ainda.'
+    modalEmpty.textContent = base.length === 0
+      ? 'Nenhum item neste contêiner ainda.'
       : 'Nenhum item corresponde à pesquisa.';
     return;
   }
@@ -625,6 +861,8 @@ function renderModalList() {
    MOVIMENTAÇÕES
    ========================================================= */
 function abrirModalMov(tipo) {
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner primeiro.', 'error'); return; }
   movTipoAtual = tipo;
   movForm.reset();
   movQtd.value = 1;
@@ -656,7 +894,9 @@ function fecharModalMov() {
 }
 
 function mostrarInfoProduto(codigo) {
-  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo));
+  const active = getActiveContainer();
+  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo)
+    && (!active || p.containerId === active.id));
   if (!produto) { movInfoBox.style.display = 'none'; return; }
   const estoque = calcularEstoque(produto.codigo);
   movInfoNome.textContent = `${produto.nome} ${produto.tamanho !== 'Sem tamanho' ? '· ' + produto.tamanho : ''} ${produto.cor !== 'Sem cor' ? '· ' + produto.cor : ''}`;
@@ -666,6 +906,9 @@ function mostrarInfoProduto(codigo) {
 
 async function registrarMovimentacao(e) {
   e.preventDefault();
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner.', 'error'); return; }
+
   const codigo = movCodigo.value.trim();
   const qtd = Number(movQtd.value);
   const dataMov = movData.value || todayStr();
@@ -675,8 +918,9 @@ async function registrarMovimentacao(e) {
     showToast('Quantidade inválida.', 'error'); movQtd.focus(); return;
   }
 
-  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo));
-  if (!produto) { showToast(`Código "${codigo}" não encontrado.`, 'error'); movCodigo.select(); return; }
+  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo)
+    && p.containerId === active.id);
+  if (!produto) { showToast(`Código "${codigo}" não encontrado neste contêiner.`, 'error'); movCodigo.select(); return; }
 
   if (movTipoAtual === 'saida') {
     const estoque = calcularEstoque(produto.codigo);
@@ -692,6 +936,7 @@ async function registrarMovimentacao(e) {
       codigo: produto.codigo,
       nome: produto.nome,
       categoria: produto.categoria,
+      containerId: produto.containerId,
       quantidade: qtd,
       data: dataMov,
       timestamp: Date.now(),
@@ -707,13 +952,15 @@ async function registrarMovimentacao(e) {
 }
 
 /* =========================================================
-   SUGESTÕES (genérico)
+   SUGESTÕES (filtradas pelo contêiner ativo)
    ========================================================= */
 function renderSuggestions(box, term, onPick) {
+  const active = getActiveContainer();
   const q = normalize(term);
-  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  if (!q || !active) { box.style.display = 'none'; box.innerHTML = ''; return; }
 
   const matches = catalogo.filter(p => {
+    if (p.containerId !== active.id) return false;
     const haystack = [p.codigo, p.nome, p.categoria, p.tamanho, p.cor].map(normalize).join(' | ');
     return haystack.includes(q);
   }).slice(0, 8);
@@ -740,11 +987,15 @@ function renderSuggestions(box, term, onPick) {
 }
 
 /* =========================================================
-   MODO CONTAGEM
+   MODO CONTAGEM (por contêiner)
    ========================================================= */
 function iniciarContagem() {
-  if (catalogo.length === 0) {
-    showToast('Cadastre itens antes de iniciar.', 'error'); return;
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner primeiro.', 'error'); return; }
+
+  const itensCont = catalogo.filter(p => p.containerId === active.id);
+  if (itensCont.length === 0) {
+    showToast('Cadastre itens neste contêiner antes de iniciar.', 'error'); return;
   }
   if (contagem.length > 0) {
     if (!confirm('Já existe uma contagem em andamento. Descartar e começar nova?')) return;
@@ -756,9 +1007,11 @@ function iniciarContagem() {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-tab="novo"]').classList.add('active');
 
+  if (countContainerName) countContainerName.textContent = `${active.codigo} — ${active.nome}`;
+
   renderContagem();
   setTimeout(() => scanCodigo.focus(), 150);
-  showToast('Levantamento iniciado!', 'info');
+  showToast(`Levantamento iniciado no contêiner ${active.codigo}!`, 'info');
 }
 
 function cancelarContagem() {
@@ -777,6 +1030,9 @@ function voltarAbaNovo() {
 }
 
 function adicionarContagem() {
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner.', 'error'); return; }
+
   const codigo = scanCodigo.value.trim();
   const qtd = Number(scanQtd.value);
 
@@ -785,8 +1041,9 @@ function adicionarContagem() {
     showToast('Quantidade inválida.', 'error'); scanQtd.focus(); return;
   }
 
-  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo));
-  if (!produto) { showToast(`Código "${codigo}" não encontrado.`, 'error'); scanCodigo.select(); return; }
+  const produto = catalogo.find(p => normalize(p.codigo) === normalize(codigo)
+    && p.containerId === active.id);
+  if (!produto) { showToast(`Código "${codigo}" não encontrado neste contêiner.`, 'error'); scanCodigo.select(); return; }
 
   const existente = contagem.findIndex(c => c.codigo === produto.codigo);
   const estoqueAtual = calcularEstoque(produto.codigo);
@@ -802,6 +1059,7 @@ function adicionarContagem() {
       tamanho: produto.tamanho,
       cor: produto.cor,
       unidade: produto.unidade || 'UN',
+      containerId: produto.containerId,
       estoqueSnapshot: estoqueAtual,
       quantidadeContada: qtd,
       timestamp: Date.now()
@@ -833,9 +1091,12 @@ function removerContagem(codigo) {
 }
 
 function renderContagem() {
+  const active = getActiveContainer();
+  const itensCont = active ? catalogo.filter(p => p.containerId === active.id) : [];
+
   progressCount.textContent = contagem.length;
-  progressTotal.textContent = catalogo.length;
-  const pct = catalogo.length ? Math.round((contagem.length / catalogo.length) * 100) : 0;
+  progressTotal.textContent = itensCont.length;
+  const pct = itensCont.length ? Math.round((contagem.length / itensCont.length) * 100) : 0;
   progressPct.textContent = pct + '%';
   progressFill.style.width = pct + '%';
 
@@ -957,6 +1218,9 @@ function abrirRelatorio() {
     totalContado,
     itensBatem,
     itensDif,
+    containerId: getActiveContainer()?.id,
+    containerCodigo: getActiveContainer()?.codigo,
+    containerNome: getActiveContainer()?.nome,
   };
 
   modalRelatorioOverlay.classList.add('active');
@@ -970,7 +1234,6 @@ async function salvarRelatorio() {
   const agora = Date.now();
 
   try {
-    // Ajustes (se marcado)
     if (ajustar) {
       for (const c of relatorioPendente.contagem) {
         const diff = c.quantidadeContada - c.estoqueSnapshot;
@@ -982,7 +1245,8 @@ async function salvarRelatorio() {
           codigo: c.codigo,
           nome: c.nome,
           categoria: c.categoria,
-          quantidade: diff, // pode ser + ou -
+          containerId: c.containerId,
+          quantidade: diff,
           data: dataHoje,
           timestamp: agora,
           criadoEm: new Date().toISOString(),
@@ -991,12 +1255,14 @@ async function salvarRelatorio() {
       }
     }
 
-    // Salva o levantamento no histórico
     const levId = uid();
     const lev = {
       data: dataHoje,
       timestamp: agora,
       criadoEm: new Date().toISOString(),
+      containerId: relatorioPendente.containerId,
+      containerCodigo: relatorioPendente.containerCodigo,
+      containerNome: relatorioPendente.containerNome,
       totalEstoque: relatorioPendente.totalEstoque,
       totalContado: relatorioPendente.totalContado,
       itensBatem: relatorioPendente.itensBatem,
@@ -1009,6 +1275,7 @@ async function salvarRelatorio() {
         tamanho: c.tamanho,
         cor: c.cor,
         unidade: c.unidade,
+        containerId: c.containerId,
         estoqueSnapshot: c.estoqueSnapshot,
         quantidadeContada: c.quantidadeContada,
         diferenca: c.quantidadeContada - c.estoqueSnapshot,
@@ -1033,24 +1300,33 @@ function fecharRelatorio() {
 }
 
 /* =========================================================
-   HISTÓRICO
+   HISTÓRICO (filtrado pelo contêiner ativo)
    ========================================================= */
 function renderHistorico() {
+  const active = getActiveContainer();
   const term = normalize(searchLevantamentos.value);
 
-  // Agrupa movimentações por dia
+  if (!active) {
+    levantamentosList.innerHTML = '';
+    emptyLevantamentos.style.display = 'flex';
+    emptyLevantamentos.innerHTML = `
+      <i class="fas fa-cubes-stacked"></i>
+      <strong>Nenhum contêiner selecionado</strong>
+      <span>Escolha um contêiner para ver o histórico.</span>
+    `;
+    return;
+  }
+
+  const movsCont = movimentacoes.filter(m => m.containerId === active.id);
+  const levsCont = levantamentos.filter(l => l.containerId === active.id);
+
   const porDia = {};
-  movimentacoes.forEach(m => {
+  movsCont.forEach(m => {
     if (!porDia[m.data]) porDia[m.data] = [];
     porDia[m.data].push(m);
   });
 
-  // Coleta todas as datas únicas
-  const todasDatas = new Set([
-    ...Object.keys(porDia),
-    ...levantamentos.map(l => l.data)
-  ]);
-
+  const todasDatas = new Set([...Object.keys(porDia), ...levsCont.map(l => l.data)]);
   let datas = [...todasDatas].sort((a, b) => b.localeCompare(a));
 
   if (term) {
@@ -1065,9 +1341,8 @@ function renderHistorico() {
   const items = [];
 
   datas.forEach(data => {
-    // Filtro
     const movsDoDia = porDia[data] || [];
-    const levsDoDia = levantamentos.filter(l => l.data === data);
+    const levsDoDia = levsCont.filter(l => l.data === data);
 
     if (filtroHistorico === 'dia' && movsDoDia.length === 0) return;
     if (filtroHistorico === 'levantamento' && levsDoDia.length === 0) return;
@@ -1078,6 +1353,11 @@ function renderHistorico() {
 
   if (items.length === 0) {
     emptyLevantamentos.style.display = 'flex';
+    emptyLevantamentos.innerHTML = `
+      <i class="fas fa-calendar-xmark"></i>
+      <strong>Nenhum registro neste contêiner</strong>
+      <span>As movimentações e levantamentos do contêiner ${escapeHtml(active.codigo)} aparecerão aqui.</span>
+    `;
     return;
   }
   emptyLevantamentos.style.display = 'none';
@@ -1155,10 +1435,11 @@ function renderHistorico() {
 }
 
 function abrirDetalhesDia(data) {
+  const active = getActiveContainer();
   diaSelecionado = data;
-  diaTitle.textContent = formatDateLong(data);
+  diaTitle.textContent = formatDateLong(data) + (active ? ` — ${active.nome}` : '');
 
-  const movs = movimentacoes.filter(m => m.data === data);
+  const movs = movimentacoes.filter(m => m.data === data && (!active || m.containerId === active.id));
   const entradas = movs.filter(m => m.tipo === 'entrada');
   const saidas = movs.filter(m => m.tipo === 'saida');
   const ajustes = movs.filter(m => m.tipo === 'ajuste');
@@ -1246,7 +1527,8 @@ function fecharModalDia() {
 }
 
 function abrirDetalhesLevantamento(lev) {
-  diaTitle.textContent = 'Levantamento — ' + formatDateLong(lev.data);
+  diaTitle.textContent = 'Levantamento — ' + formatDateLong(lev.data)
+    + (lev.containerNome ? ` — ${lev.containerNome}` : '');
 
   const difTotal = lev.totalContado - lev.totalEstoque;
 
@@ -1329,9 +1611,13 @@ function mostrarHistoricoItem(codigo) {
    EXPORTAR EXCEL
    ========================================================= */
 function exportExcel() {
-  if (catalogo.length === 0) { showToast('Não há itens.', 'error'); return; }
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner.', 'error'); return; }
 
-  const dados = catalogo.map(p => ({
+  const listaCat = catalogo.filter(p => p.containerId === active.id);
+  if (listaCat.length === 0) { showToast('Não há itens neste contêiner.', 'error'); return; }
+
+  const dados = listaCat.map(p => ({
     Código: p.codigo, Categoria: p.categoria || 'Outros', Item: p.nome,
     Estoque: calcularEstoque(p.codigo), 'Estoque Inicial': p.estoqueInicial || 0,
     Unidade: p.unidade || 'UN', Tamanho: p.tamanho || '', Cor: p.cor || '',
@@ -1341,10 +1627,12 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(dados);
   ws['!cols'] = [{wch:12},{wch:14},{wch:28},{wch:10},{wch:14},{wch:10},{wch:10},{wch:12},{wch:16},{wch:30}];
 
-  const movDados = movimentacoes.map(m => ({
-    Data: formatDate(m.data), Tipo: m.tipo.toUpperCase(),
-    Código: m.codigo, Item: m.nome, Quantidade: m.quantidade,
-  }));
+  const movDados = movimentacoes
+    .filter(m => m.containerId === active.id)
+    .map(m => ({
+      Data: formatDate(m.data), Tipo: m.tipo.toUpperCase(),
+      Código: m.codigo, Item: m.nome, Quantidade: m.quantidade,
+    }));
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Catálogo');
@@ -1354,9 +1642,10 @@ function exportExcel() {
     XLSX.utils.book_append_sheet(wb, wsMov, 'Movimentações');
   }
 
-  if (levantamentos.length > 0) {
+  const levs = levantamentos.filter(l => l.containerId === active.id);
+  if (levs.length > 0) {
     const levDados = [];
-    levantamentos.forEach(l => {
+    levs.forEach(l => {
       l.itens?.forEach(c => {
         levDados.push({
           Data: formatDate(l.data), Código: c.codigo, Categoria: c.categoria,
@@ -1373,7 +1662,7 @@ function exportExcel() {
     }
   }
 
-  XLSX.writeFile(wb, `estoque_${todayStr()}.xlsx`);
+  XLSX.writeFile(wb, `estoque_${active.codigo}_${todayStr()}.xlsx`);
   showToast('Excel exportado!', 'success');
 }
 
@@ -1381,18 +1670,24 @@ function exportExcel() {
    IMPRESSÃO
    ========================================================= */
 function printList() {
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner.', 'error'); return; }
+
+  const listaCat = catalogo.filter(p => p.containerId === active.id);
   const win = window.open('', '_blank');
   const html = `
     <html><head><title>Levantamento</title>
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; }
       h1 { font-size: 16px; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+      h2 { font-size: 13px; text-align: center; color: #444; margin-top: 6px; font-weight: normal; }
       table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt; }
       th, td { border: 1px solid #333; padding: 5px 6px; text-align: left; }
       th { background: #e6e6e6; font-weight: bold; }
       .meta { margin-top: 15px; font-size: 10pt; line-height: 1.8; }
     </style></head><body>
       <h1>LEVANTAMENTO DE UNIFORMES E EPIs</h1>
+      <h2>Contêiner ${escapeHtml(active.codigo)} — ${escapeHtml(active.nome)}</h2>
       <div class="meta">
         <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
         <p><strong>Responsável:</strong> _________________________</p>
@@ -1403,7 +1698,7 @@ function printList() {
           <th>Unid.</th><th>Tam.</th><th>Cor</th><th>Observação</th>
         </tr></thead>
         <tbody>
-          ${catalogo.map(p => `
+          ${listaCat.map(p => `
             <tr>
               <td>${escapeHtml(p.codigo)}</td>
               <td>${escapeHtml(p.categoria || '')}</td>
@@ -1425,7 +1720,7 @@ function printList() {
 }
 
 /* =========================================================
-   IMPORTAÇÃO EXCEL
+   IMPORTAÇÃO EXCEL (vincula ao contêiner ativo)
    ========================================================= */
 const COLUMN_MAP = {
   codigo:      ['codigo', 'código', 'cod', 'cod.', 'code', 'sku', 'id'],
@@ -1485,6 +1780,9 @@ function mapRowToItem(row, headerMap) {
 }
 
 function importCatalogFromExcel(file) {
+  const active = getActiveContainer();
+  if (!active) { showToast('Selecione um contêiner antes de importar.', 'error'); return; }
+
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -1514,26 +1812,35 @@ function importCatalogFromExcel(file) {
       });
 
       const substituir = confirm(
-        `Encontrados ${itens.length} item(ns).\n\n` +
-        `OK = SUBSTITUIR catálogo\nCancelar = ADICIONAR aos existentes`
+        `Encontrados ${itens.length} item(ns) para o contêiner ${active.codigo} — ${active.nome}.\n\n` +
+        `OK = SUBSTITUIR os itens deste contêiner\nCancelar = ADICIONAR aos existentes`
       );
 
       setCloudStatus('syncing', 'Importando...');
-      if (substituir) for (const c of catalogo) await remove(ref(db, 'catalogo/' + c.id));
+      if (substituir) {
+        const existentes = catalogo.filter(c => c.containerId === active.id);
+        for (const c of existentes) await remove(ref(db, 'catalogo/' + c.id));
+      }
 
       let importados = 0, duplicados = 0;
       for (const it of itens) {
-        const dup = catalogo.some(p => p.codigo === it.codigo &&
-          (p.tamanho || 'Sem tamanho') === it.tamanho && (p.cor || 'Sem cor') === it.cor);
+        const dup = catalogo.some(p => p.codigo === it.codigo
+          && p.containerId === active.id
+          && (p.tamanho || 'Sem tamanho') === it.tamanho
+          && (p.cor || 'Sem cor') === it.cor);
         if (dup && !substituir) { duplicados++; continue; }
 
         const novoId = uid();
-        await set(ref(db, 'catalogo/' + novoId), { ...it, criadoEm: new Date().toISOString() });
+        await set(ref(db, 'catalogo/' + novoId), {
+          ...it,
+          containerId: active.id,
+          criadoEm: new Date().toISOString(),
+        });
         importados++;
       }
 
       setCloudStatus('online', 'Conectado');
-      let msg = `${importados} item(ns) importado(s)!`;
+      let msg = `${importados} item(ns) importado(s) no contêiner ${active.codigo}!`;
       if (duplicados > 0) msg += ` (${duplicados} ignorado(s))`;
       showToast(msg, 'success');
     } catch (err) {
@@ -1613,7 +1920,7 @@ function atualizarIconeTema() {
    ENTER INTELIGENTE
    ========================================================= */
 function initEnterInteligente() {
-  const campos = [codigoInput, categoriaInput, nomeInput, quantidadeInput,
+  const campos = [codigoInput, categoriaInput, containerItem, nomeInput, quantidadeInput,
                   conteudoInput, unidadeInput, tamanhoInput, corInput, observacaoInput];
 
   campos.forEach((campo, idx) => {
@@ -1646,6 +1953,21 @@ function init() {
   initTabs();
   initTheme();
   initEnterInteligente();
+
+  /* Contêineres */
+  openContainersBtn.addEventListener('click', openContainersModal);
+  closeContainersBtn.addEventListener('click', closeContainersModal);
+  modalContainersOverlay.addEventListener('click', e => {
+    if (e.target === modalContainersOverlay) closeContainersModal();
+  });
+  containerForm.addEventListener('submit', handleContainerSubmit);
+  cancelContainerEditBtn.addEventListener('click', resetContainerForm);
+
+  activeContainerSelect.addEventListener('change', e => {
+    setActiveContainer(e.target.value || null);
+    renderCatalogo();
+    renderHistorico();
+  });
 
   /* Cadastro */
   openFormBtn.addEventListener('click', () => { resetForm(); openModal(); });
@@ -1738,7 +2060,11 @@ function init() {
   exportExcelBtn.addEventListener('click', exportExcel);
   printBtn.addEventListener('click', printList);
 
-  importCatalogBtn.addEventListener('click', () => importCatalogFile.click());
+  importCatalogBtn.addEventListener('click', () => {
+    const active = getActiveContainer();
+    if (!active) { showToast('Selecione um contêiner antes de importar.', 'error'); return; }
+    importCatalogFile.click();
+  });
   importCatalogFile.addEventListener('change', e => {
     const file = e.target.files && e.target.files[0];
     if (file) importCatalogFromExcel(file);
@@ -1752,6 +2078,7 @@ function init() {
       if (modalMovOverlay.classList.contains('active')) fecharModalMov();
       if (modalDiaOverlay.classList.contains('active')) fecharModalDia();
       if (modalRelatorioOverlay.classList.contains('active')) fecharRelatorio();
+      if (modalContainersOverlay.classList.contains('active')) closeContainersModal();
       if (scanSuggestions.style.display === 'block') scanSuggestions.style.display = 'none';
       if (movSuggestions.style.display === 'block') movSuggestions.style.display = 'none';
     }
