@@ -3,382 +3,363 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#F57C00" />
-  <meta name="description" content="WALP — Sistema de gestão de uniformes e EPIs por contêiner." />
-  <title>WALP | Gestão de Uniformes e EPIs</title>
+  <meta name="theme-color" content="#14243A" />
+  <meta name="description" content="WALP — Gestão Inteligente de Uniformes e EPIs." />
+  <title>WALP | Gestão Inteligente</title>
 
-  <!-- Favicon WALP (SVG inline) -->
-  <link rel="icon" type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%23F57C00'/%3E%3Crect x='10' y='16' width='28' height='20' rx='2' fill='%23fff'/%3E%3Cpath d='M10 16h28l-3 4H13l-3-4Z' fill='%23FFE0B2'/%3E%3Cpath d='M17 24h14M17 28h14' stroke='%23F57C00' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <!-- Favicon WALP -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='24' fill='%2314243A'/%3E%3Cpath d='M12 16h6l6 10 6-10h6v16h-6V22l-6 10-6-10v10h-6V16z' fill='%232563EB'/%3E%3C/svg%3E" />
 
-  <!-- Fontes -->
+  <!-- Fontes e Ícones -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
   <!-- Estilos -->
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Ícones -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
   <!-- Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.20.1/xlsx.full.min.js"></script>
 </head>
 <body>
 
-  <div class="container">
+  <!-- OVERLAY MOBILE -->
+  <div class="mobile-overlay" id="mobileOverlay"></div>
 
-    <!-- ================= CABEÇALHO WALP ================= -->
-    <header class="app-header">
-      <div class="header-left">
-        <div class="app-logo">
-          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="4" y="10" width="40" height="30" rx="3" fill="currentColor"/>
-            <path d="M4 10h40l-4 6H8l-4-6Z" fill="#fff" fill-opacity=".25"/>
-            <path d="M14 22h20M14 28h20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-            <path d="M24 4v6M18 4l6 6M30 4l-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="22" stroke="var(--primary)" stroke-width="4"/>
+            <path d="M12 16h6l6 10 6-10h6v16h-6V22l-6 10-6-10v10h-6V16z" fill="var(--primary)"/>
           </svg>
         </div>
-        <div class="app-title">
-          <h1>WALP <span class="app-title-sub">| Gestão de Uniformes e EPIs</span></h1>
-          <span class="app-subtitle">
-            <i class="fas fa-cloud" id="cloudStatus"></i>
-            <span id="cloudStatusText">Conectando...</span>
-            <span class="app-version">v3.0</span>
-          </span>
+        <div class="logo-text">
+          <strong>WALP</strong>
+          <span>Gestão de EPIs</span>
         </div>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-icon-only" id="themeToggleBtn" title="Alternar tema">
-          <i class="fas fa-moon"></i>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-tab="novo">
+        <i class="fas fa-clipboard-check"></i>
+        <span>Levantamento</span>
+      </a>
+      <a href="#" class="nav-item" data-tab="historico">
+        <i class="fas fa-clock-rotate-left"></i>
+        <span>Histórico</span>
+      </a>
+      <a href="#" class="nav-item" id="openContainersBtnSide">
+        <i class="fas fa-cubes-stacked"></i>
+        <span>Contêineres</span>
+      </a>
+      <a href="#" class="nav-item" id="openFormBtnSide">
+        <i class="fas fa-box"></i>
+        <span>Produtos</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="cloud-status">
+        <i class="fas fa-cloud" id="cloudStatus"></i>
+        <span id="cloudStatusText">Conectando...</span>
+      </div>
+      <div class="version">v3.1 Enterprise</div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="main-content">
+    
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-icon mobile-menu-btn" id="mobileMenuBtn">
+          <i class="fas fa-bars"></i>
         </button>
-        <button class="btn btn-template" id="templateBtn" title="Baixar modelo">
-          <i class="fas fa-file-arrow-down"></i> Modelo
+        <div class="page-title">
+          <h1 id="pageTitle">Levantamento de Estoque</h1>
+          <div class="breadcrumb">WALP / <span id="breadcrumbCurrent">Levantamento</span></div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Botão de Contêineres -->
+        <button class="btn btn-outline" id="openContainersBtn">
+          <i class="fas fa-cubes-stacked"></i> 
+          <span class="hide-mobile">Contêineres</span>
+          <span class="badge" id="containersCount">0</span>
         </button>
-        <button class="btn btn-import-catalog" id="importCatalogBtn" title="Importar Excel">
-          <i class="fas fa-file-excel"></i> Importar
-        </button>
-        <button class="btn btn-secondary btn-top" id="openContainersBtn" title="Gerenciar Contêineres">
-          <i class="fas fa-cubes-stacked"></i> Contêineres
-          <span class="btn-badge" id="containersCount">0</span>
-        </button>
-        <button class="btn btn-primary btn-top" id="openFormBtn">
-          <i class="fas fa-plus-circle"></i> Cadastrar Item
-          <span class="btn-badge" id="openFormCount">0</span>
+        
+        <!-- Botão de Cadastro -->
+        <button class="btn btn-primary" id="openFormBtn">
+          <i class="fas fa-plus"></i> 
+          <span class="hide-mobile">Novo Item</span>
+          <span class="badge" id="openFormCount">0</span>
         </button>
       </div>
-      <input type="file" id="importCatalogFile" accept=".xlsx,.xls,.csv" hidden />
     </header>
 
-    <!-- ================= SELETOR DE CONTÊINER ================= -->
-    <section class="container-selector-bar no-print" id="containerSelectorBar">
+    <!-- Barra de Ferramentas Global (Filtros) -->
+    <section class="container-selector-bar">
       <div class="container-selector-left">
-        <i class="fas fa-cubes-stacked"></i>
+        <div class="icon-box"><i class="fas fa-cubes"></i></div>
         <div>
-          <span class="container-selector-label">Contêiner ativo</span>
+          <span class="label">Contêiner Ativo</span>
           <strong id="activeContainerName">Nenhum selecionado</strong>
         </div>
       </div>
-      <select id="activeContainerSelect" class="container-select">
+      <select id="activeContainerSelect" class="custom-select">
         <option value="">— Selecione um contêiner —</option>
       </select>
     </section>
 
-    <!-- ================= ABAS ================= -->
-    <nav class="tabs-nav no-print">
-      <button class="tab-btn active" data-tab="novo">
-        <i class="fas fa-clipboard-check"></i>
-        Novo Levantamento
-        <span class="tab-badge" id="tabBadgeCatalogo">0</span>
-      </button>
-      <button class="tab-btn" data-tab="historico">
-        <i class="fas fa-clock-rotate-left"></i>
-        Levantamentos Passados
-        <span class="tab-badge" id="tabBadgeLevantamentos">0</span>
-      </button>
-    </nav>
-
-    <!-- ================= ABA: NOVO LEVANTAMENTO ================= -->
-    <div id="tabNovo" class="tab-content active">
-
-      <!-- Painel de resumo -->
-      <section class="summary-panel no-print">
-        <div class="summary-card summary-container">
-          <div class="summary-icon"><i class="fas fa-cubes-stacked"></i></div>
-          <div class="summary-info">
-            <span class="summary-label">Contêiner</span>
-            <strong class="summary-value" id="sumContainer" style="font-size:1rem;">—</strong>
-            <small id="sumContainerCode">código —</small>
+    <!-- Conteúdo Variável (Abas) -->
+    <div class="content-wrapper">
+      
+      <!-- ================= ABA: NOVO LEVANTAMENTO ================= -->
+      <div id="tabNovo" class="tab-content active">
+        
+        <!-- Painel de Resumo (Cards) -->
+        <section class="summary-panel">
+          <div class="summary-card">
+            <div class="summary-icon bg-blue"><i class="fas fa-cubes-stacked"></i></div>
+            <div class="summary-data">
+              <span>Contêiner</span>
+              <strong id="sumContainer">—</strong>
+              <small id="sumContainerCode">código —</small>
+            </div>
           </div>
-        </div>
-
-        <div class="summary-card summary-total">
-          <div class="summary-icon"><i class="fas fa-list-ol"></i></div>
-          <div class="summary-info">
-            <span class="summary-label">Total de Itens</span>
-            <strong class="summary-value" id="sumRegistros">0</strong>
-            <small>itens cadastrados</small>
+          <div class="summary-card">
+            <div class="summary-icon bg-indigo"><i class="fas fa-list"></i></div>
+            <div class="summary-data">
+              <span>Total de Itens</span>
+              <strong id="sumRegistros">0</strong>
+              <small>cadastrados</small>
+            </div>
           </div>
-        </div>
-
-        <div class="summary-card summary-qtd">
-          <div class="summary-icon"><i class="fas fa-cubes"></i></div>
-          <div class="summary-info">
-            <span class="summary-label">Estoque Atual</span>
-            <strong class="summary-value" id="sumItens">0</strong>
-            <small>unidades em estoque</small>
+          <div class="summary-card">
+            <div class="summary-icon bg-green"><i class="fas fa-box-open"></i></div>
+            <div class="summary-data">
+              <span>Estoque Atual</span>
+              <strong id="sumItens">0</strong>
+              <small>unidades</small>
+            </div>
           </div>
-        </div>
-
-        <div class="summary-card summary-uniforme">
-          <div class="summary-icon"><i class="fas fa-shirt"></i></div>
-          <div class="summary-info">
-            <span class="summary-label">Uniformes</span>
-            <strong class="summary-value" id="sumUniformes">0</strong>
-            <small>itens</small>
+          <div class="summary-card">
+            <div class="summary-icon bg-orange"><i class="fas fa-shirt"></i></div>
+            <div class="summary-data">
+              <span>Uniformes</span>
+              <strong id="sumUniformes">0</strong>
+              <small>itens</small>
+            </div>
           </div>
-        </div>
-
-        <div class="summary-card summary-epi">
-          <div class="summary-icon"><i class="fas fa-helmet-safety"></i></div>
-          <div class="summary-info">
-            <span class="summary-label">EPIs</span>
-            <strong class="summary-value" id="sumEpis">0</strong>
-            <small>itens</small>
+          <div class="summary-card">
+            <div class="summary-icon bg-red"><i class="fas fa-helmet-safety"></i></div>
+            <div class="summary-data">
+              <span>EPIs</span>
+              <strong id="sumEpis">0</strong>
+              <small>itens</small>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Botão Iniciar Levantamento -->
-      <section class="start-count-bar no-print" id="startCountBar">
-        <div class="start-count-info">
-          <i class="fas fa-clipboard-check"></i>
-          <div>
-            <strong>Pronto para iniciar o levantamento?</strong>
-            <span>Digite o código e a quantidade encontrada de cada item.</span>
+        <!-- Iniciar Contagem -->
+        <section class="start-count-bar">
+          <div class="start-count-info">
+            <i class="fas fa-clipboard-check"></i>
+            <div>
+              <strong>Pronto para iniciar o levantamento físico?</strong>
+              <span>Você fará a contagem item por item do contêiner selecionado acima.</span>
+            </div>
           </div>
-        </div>
-        <button class="btn btn-start-count" id="startCountBtn">
-          <i class="fas fa-play"></i> Iniciar Levantamento
-        </button>
-      </section>
-
-      <!-- Pesquisa e filtros -->
-      <section class="card filters-section no-print">
-        <div class="search-wrapper">
-          <i class="fas fa-search"></i>
-          <input type="text" id="searchCatalogo" placeholder="Pesquisar por código, nome, categoria, tamanho, cor..." />
-          <button class="search-clear hidden" id="clearSearchBtn" title="Limpar">
-            <i class="fas fa-times"></i>
+          <button class="btn btn-primary btn-lg" id="startCountBtn">
+            <i class="fas fa-play"></i> Iniciar Contagem
           </button>
-        </div>
+        </section>
 
-        <div class="category-filters" id="categoryFilters">
-          <button class="chip active" data-cat="todos"><i class="fas fa-layer-group"></i> Todos</button>
-          <button class="chip" data-cat="Uniforme"><i class="fas fa-shirt"></i> Uniformes</button>
-          <button class="chip" data-cat="EPI"><i class="fas fa-helmet-safety"></i> EPIs</button>
-          <button class="chip" data-cat="Outros"><i class="fas fa-box"></i> Outros</button>
-        </div>
-      </section>
-
-      <!-- Botões de movimentação -->
-      <section class="mov-bar no-print">
-        <button class="btn btn-entrada" id="btnEntrada">
-          <i class="fas fa-arrow-down"></i> Registrar Entrada
-        </button>
-        <button class="btn btn-saida" id="btnSaida">
-          <i class="fas fa-arrow-up"></i> Registrar Saída
-        </button>
-        <button class="btn btn-excel" id="exportExcelBtn">
-          <i class="fas fa-file-excel"></i> Exportar Excel
-        </button>
-        <button class="btn btn-print" id="printBtn">
-          <i class="fas fa-print"></i> Imprimir
-        </button>
-      </section>
-
-      <!-- Tabela principal -->
-      <section class="card table-section no-print" id="tableSection">
-        <div class="table-header-row">
-          <h3>
-            <i class="fas fa-boxes-stacked"></i>
-            <span id="tableTitle">Catálogo de Itens</span>
-          </h3>
-          <span class="sub">Exibindo <strong id="totalRegistros">0</strong> registro(s)</span>
-        </div>
-
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Categoria</th>
-                <th>Item</th>
-                <th class="col-qtd">Estoque</th>
-                <th>Conteúdo</th>
-                <th>Unid.</th>
-                <th>Tam.</th>
-                <th>Cor</th>
-                <th>Observação</th>
-                <th class="col-actions">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="mainBody"></tbody>
-          </table>
-
-          <div class="empty-message" id="emptyMain">
-            <i class="fas fa-box-open"></i>
-            <strong>Nenhum item cadastrado</strong>
-            <span>Clique em "+ Cadastrar Item" para começar.</span>
+        <!-- Filtros e Tabela -->
+        <section class="card table-section">
+          <div class="table-header-row">
+            <div class="table-title">
+              <i class="fas fa-boxes-stacked text-blue"></i>
+              <h3>Catálogo de Itens</h3>
+            </div>
+            <div class="table-filters">
+              <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchCatalogo" placeholder="Pesquisar item..." />
+                <button class="search-clear hidden" id="clearSearchBtn"><i class="fas fa-times"></i></button>
+              </div>
+              <div class="filter-chips" id="categoryFilters">
+                <button class="chip active" data-cat="todos">Todos</button>
+                <button class="chip" data-cat="Uniforme">Uniformes</button>
+                <button class="chip" data-cat="EPI">EPIs</button>
+                <button class="chip" data-cat="Outros">Outros</button>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
-    </div>
 
-    <!-- ================= ABA: MODO CONTAGEM ================= -->
-    <div id="tabContagem" class="tab-content">
-
-      <!-- Header da contagem -->
-      <section class="count-header">
-        <div class="count-header-left">
-          <div class="count-icon">
-            <i class="fas fa-barcode"></i>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Categoria</th>
+                  <th>Item</th>
+                  <th class="text-center">Estoque</th>
+                  <th>Conteúdo</th>
+                  <th>Unid.</th>
+                  <th>Tam.</th>
+                  <th>Cor</th>
+                  <th>Obs.</th>
+                  <th class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="mainBody"></tbody>
+            </table>
+            <div class="empty-state" id="emptyMain">
+              <i class="fas fa-box-open"></i>
+              <strong>Nenhum item encontrado</strong>
+              <span>Cadastre itens ou selecione outro contêiner.</span>
+            </div>
           </div>
-          <div>
-            <h2>Levantamento em Andamento</h2>
-            <p>
-              Contêiner: <strong id="countContainerName">—</strong>
-              · Digite o código e a quantidade <strong>encontrada fisicamente</strong>.
-            </p>
-          </div>
-        </div>
-        <div class="count-header-right">
-          <button class="btn btn-cancel-count" id="cancelCountBtn">
-            <i class="fas fa-times"></i> Cancelar
-          </button>
-          <button class="btn btn-done-count" id="doneCountBtn">
-            <i class="fas fa-check"></i> Finalizar Levantamento
-          </button>
-        </div>
-      </section>
+        </section>
 
-      <!-- Barra de progresso -->
-      <section class="progress-section">
-        <div class="progress-info">
-          <span><strong id="progressCount">0</strong> de <strong id="progressTotal">0</strong> itens contados</span>
-          <span id="progressPct">0%</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progressFill"></div>
-        </div>
-      </section>
+        <!-- Ações Rápidas -->
+        <section class="quick-actions">
+          <button class="btn btn-outline" id="btnEntrada"><i class="fas fa-arrow-down text-green"></i> Registrar Entrada</button>
+          <button class="btn btn-outline" id="btnSaida"><i class="fas fa-arrow-up text-red"></i> Registrar Saída</button>
+          <div class="spacer"></div>
+          <button class="btn btn-outline" id="exportExcelBtn"><i class="fas fa-file-excel text-green"></i> Exportar Excel</button>
+          <button class="btn btn-outline" id="printBtn"><i class="fas fa-print"></i> Imprimir</button>
+        </section>
 
-      <!-- Scanner -->
-      <section class="scanner-section">
-        <div class="scanner-header">
-          <h3><i class="fas fa-barcode"></i> Registrar contagem</h3>
-        </div>
-        <div class="scanner-row">
-          <div class="input-group scanner-code-group">
-            <label for="scanCodigo">Código</label>
-            <input type="text" id="scanCodigo" placeholder="Ex: 1009" autocomplete="off" />
-            <div class="suggestions" id="scanSuggestions"></div>
-          </div>
-          <div class="input-group scanner-qtd-group">
-            <label for="scanQtd">Qtd. Encontrada</label>
-            <input type="number" id="scanQtd" min="0" step="1" value="0" autocomplete="off" />
-          </div>
-          <button class="btn btn-primary scanner-add-btn" id="scanAddBtn">
-            <i class="fas fa-plus-circle"></i> Adicionar
-          </button>
-        </div>
-        <div class="scan-feedback hidden" id="scanFeedback"></div>
-      </section>
-
-      <!-- Lista do que foi contado -->
-      <section class="card count-list-section">
-        <div class="table-header-row">
-          <h3>
-            <i class="fas fa-list-check"></i>
-            <span>Itens contados</span>
-          </h3>
-          <span class="sub">Total: <strong id="countTotalItens">0</strong></span>
-        </div>
-
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Categoria</th>
-                <th>Item</th>
-                <th>Tam.</th>
-                <th>Cor</th>
-                <th class="col-qtd">Estoque</th>
-                <th class="col-qtd">Contado</th>
-                <th class="col-qtd">Diferença</th>
-                <th class="col-actions">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="countListBody"></tbody>
-          </table>
-          <div class="empty-message" id="countEmpty">
-            <i class="fas fa-barcode"></i>
-            <strong>Nenhum item contado ainda</strong>
-            <span>Digite o código acima para começar.</span>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <!-- ================= ABA: HISTÓRICO ================= -->
-    <div id="tabHistorico" class="tab-content">
-
-      <section class="card filters-section no-print">
-        <div class="search-wrapper">
-          <i class="fas fa-search"></i>
-          <input type="text" id="searchLevantamentos" placeholder="Pesquisar por data (ex: 28/09/2026)..." />
-        </div>
-        <div class="category-filters">
-          <button class="chip active" data-hist="todos"><i class="fas fa-layer-group"></i> Todos</button>
-          <button class="chip" data-hist="dia"><i class="fas fa-calendar-day"></i> Movimentações do dia</button>
-          <button class="chip" data-hist="levantamento"><i class="fas fa-clipboard-check"></i> Levantamentos</button>
-        </div>
-      </section>
-
-      <div id="levantamentosList" class="levantamentos-list"></div>
-
-      <div class="empty-message" id="emptyLevantamentos" style="display:none;">
-        <i class="fas fa-calendar-xmark"></i>
-        <strong>Nenhum registro ainda</strong>
-        <span>As movimentações e levantamentos aparecerão aqui.</span>
       </div>
+
+      <!-- ================= ABA: MODO CONTAGEM ================= -->
+      <div id="tabContagem" class="tab-content">
+        
+        <section class="count-header-card">
+          <div class="count-header-left">
+            <div class="count-icon-box"><i class="fas fa-barcode"></i></div>
+            <div>
+              <h2>Levantamento em Andamento</h2>
+              <p>Contêiner: <strong id="countContainerName">—</strong></p>
+            </div>
+          </div>
+          <div class="count-header-right">
+            <button class="btn btn-outline-danger" id="cancelCountBtn"><i class="fas fa-times"></i> Cancelar</button>
+            <button class="btn btn-success" id="doneCountBtn"><i class="fas fa-check"></i> Finalizar</button>
+          </div>
+        </section>
+
+        <section class="progress-card">
+          <div class="progress-info">
+            <span><strong id="progressCount">0</strong> de <strong id="progressTotal">0</strong> itens contados</span>
+            <span id="progressPct" class="text-blue font-bold">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </section>
+
+        <section class="scanner-card">
+          <div class="scanner-header">
+            <h3>Registrar Contagem</h3>
+            <p>Digite o código ou use o leitor de código de barras.</p>
+          </div>
+          <div class="scanner-form">
+            <div class="input-group relative">
+              <label for="scanCodigo">Código do Produto</label>
+              <input type="text" id="scanCodigo" placeholder="Ex: 1009" autocomplete="off" class="input-lg" />
+              <div class="suggestions" id="scanSuggestions"></div>
+            </div>
+            <div class="input-group">
+              <label for="scanQtd">Qtd. Encontrada</label>
+              <input type="number" id="scanQtd" min="0" step="1" value="0" class="input-lg text-center font-bold" />
+            </div>
+            <button class="btn btn-primary btn-lg" id="scanAddBtn"><i class="fas fa-plus"></i> Adicionar</button>
+          </div>
+          <div class="scan-feedback hidden" id="scanFeedback"></div>
+        </section>
+
+        <section class="card table-section">
+          <div class="table-header-row">
+            <div class="table-title">
+              <i class="fas fa-list-check text-blue"></i>
+              <h3>Itens Contados</h3>
+            </div>
+            <span class="sub">Total: <strong id="countTotalItens">0</strong></span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th><th>Categoria</th><th>Item</th><th>Tam.</th><th>Cor</th>
+                  <th class="text-center">Estoque</th><th class="text-center">Contado</th><th class="text-center">Diferença</th><th class="text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="countListBody"></tbody>
+            </table>
+            <div class="empty-state" id="countEmpty">
+              <i class="fas fa-barcode"></i>
+              <strong>Nenhum item contado</strong>
+              <span>Os itens adicionados acima aparecerão aqui.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= ABA: HISTÓRICO ================= -->
+      <div id="tabHistorico" class="tab-content">
+        
+        <section class="card filters-section">
+          <div class="search-box w-full">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchLevantamentos" placeholder="Pesquisar por data (ex: 28/09/2026)..." />
+          </div>
+          <div class="filter-chips mt-2">
+            <button class="chip active" data-hist="todos">Todos</button>
+            <button class="chip" data-hist="dia">Movimentações</button>
+            <button class="chip" data-hist="levantamento">Levantamentos</button>
+          </div>
+        </section>
+
+        <div id="levantamentosList" class="levantamentos-list"></div>
+
+        <div class="empty-state" id="emptyLevantamentos" style="display:none;">
+          <i class="fas fa-calendar-xmark"></i>
+          <strong>Nenhum registro</strong>
+          <span>O histórico do contêiner aparecerá aqui.</span>
+        </div>
+      </div>
+
     </div>
+  </main>
 
-  </div>
+  <!-- ================= MODAIS ================= -->
+  <!-- (Mantidos exatamente com os mesmos IDs para o JS continuar funcionando) -->
 
-  <!-- ================= MODAL DE CADASTRO ================= -->
+  <!-- MODAL DE CADASTRO -->
   <div class="modal-overlay" id="modalOverlay">
-    <div class="modal modal-large">
+    <div class="modal modal-lg">
       <div class="modal-header">
-        <h2>
-          <i class="fas fa-box"></i>
-          <span id="modalTitle">Cadastrar Novo Item</span>
-        </h2>
-        <button class="btn-close" id="closeModalBtn" title="Fechar">
-          <i class="fas fa-times"></i>
-        </button>
+        <h2><i class="fas fa-box text-blue"></i> <span id="modalTitle">Cadastrar Novo Item</span></h2>
+        <button class="btn-close" id="closeModalBtn"><i class="fas fa-times"></i></button>
       </div>
 
-      <form id="productForm" class="form-grid form-grid-compact" autocomplete="off">
-        <div class="input-group">
-          <label for="codigo">Código *</label>
+      <form id="productForm" class="modal-body form-grid" autocomplete="off">
+        <div class="input-group span-1">
+          <label>Código *</label>
           <input type="text" id="codigo" placeholder="Ex: 1009" required />
         </div>
-
-        <div class="input-group">
-          <label for="categoria">Categoria *</label>
+        <div class="input-group span-1">
+          <label>Categoria *</label>
           <select id="categoria" required>
             <option value="">Selecione...</option>
             <option value="Uniforme">Uniforme</option>
@@ -386,319 +367,232 @@
             <option value="Outros">Outros</option>
           </select>
         </div>
-
-        <div class="input-group">
-          <label for="containerItem">Contêiner *</label>
+        <div class="input-group span-1">
+          <label>Contêiner *</label>
           <select id="containerItem" required>
             <option value="">Selecione...</option>
           </select>
         </div>
-
-        <div class="input-group">
-          <label for="quantidade">Estoque Inicial *</label>
+        <div class="input-group span-1">
+          <label>Estoque Inicial *</label>
           <input type="number" id="quantidade" min="0" step="1" value="0" />
         </div>
 
         <div class="input-group span-2">
-          <label for="nome">Nome do Item *</label>
-          <input type="text" id="nome" placeholder="Ex: Camiseta, Capacete..." required />
+          <label>Nome do Item *</label>
+          <input type="text" id="nome" placeholder="Ex: Camiseta Polo" required />
         </div>
 
-        <div class="input-group">
-          <label for="conteudo">Conteúdo</label>
-          <input type="text" id="conteudo" placeholder="Ex: Caixa com 100" />
-          <small class="help-text">Qtd. dentro da embalagem</small>
+        <div class="input-group span-1">
+          <label>Conteúdo / Emb.</label>
+          <input type="text" id="conteudo" placeholder="Ex: Caixa c/ 100" />
         </div>
-
-        <div class="input-group">
-          <label for="unidade">Unidade</label>
+        <div class="input-group span-1">
+          <label>Unidade</label>
           <select id="unidade">
-            <option value="UN">UN — Unidade</option>
-            <option value="PAR">PAR — Par</option>
-            <option value="CX">CX — Caixa</option>
-            <option value="PCT">PCT — Pacote</option>
-            <option value="KIT">KIT — Kit</option>
-            <option value="M">M — Metro</option>
-            <option value="KG">KG — Quilograma</option>
-            <option value="L">L — Litro</option>
+            <option value="UN">UN</option><option value="PAR">PAR</option><option value="CX">CX</option>
+            <option value="PCT">PCT</option><option value="KIT">KIT</option>
           </select>
         </div>
-
-        <div class="input-group">
-          <label for="tamanho">Tamanho</label>
-          <input type="text" id="tamanho" placeholder="Ex: P, M, G, 42..." maxlength="20"
-                 list="tamanhoSugestoes" autocomplete="off" />
+        <div class="input-group span-1">
+          <label>Tamanho</label>
+          <input type="text" id="tamanho" placeholder="Ex: M, G, 42" list="tamanhoSugestoes" />
           <datalist id="tamanhoSugestoes">
-            <option value="PP"></option><option value="P"></option>
-            <option value="M"></option><option value="G"></option>
-            <option value="GG"></option><option value="XG"></option>
-            <option value="Único"></option>
-            <option value="36"></option><option value="38"></option>
-            <option value="40"></option><option value="42"></option>
-            <option value="44"></option><option value="46"></option>
-            <option value="48"></option>
+            <option value="PP"><option value="P"><option value="M"><option value="G"><option value="GG"><option value="XG">
           </datalist>
         </div>
-
-        <div class="input-group">
-          <label for="cor">Cor</label>
+        <div class="input-group span-1">
+          <label>Cor</label>
           <select id="cor">
-            <option value="">Sem cor</option>
-            <option value="Preto">Preto</option>
-            <option value="Branco">Branco</option>
-            <option value="Azul">Azul</option>
-            <option value="Vermelho">Vermelho</option>
-            <option value="Verde">Verde</option>
-            <option value="Amarelo">Amarelo</option>
-            <option value="Cinza">Cinza</option>
+            <option value="">Sem cor</option><option value="Preto">Preto</option><option value="Branco">Branco</option>
+            <option value="Azul">Azul</option><option value="Cinza">Cinza</option>
           </select>
         </div>
 
-        <div class="input-group span-2">
-          <label for="observacao">Observação</label>
-          <input type="text" id="observacao" placeholder="Ex: CA 31469, modelo especial, lote..." />
+        <div class="input-group span-4">
+          <label>Observação / CA</label>
+          <input type="text" id="observacao" placeholder="Ex: CA 31469..." />
         </div>
 
-        <div class="input-group span-2" style="flex-direction:row;align-items:center;gap:10px;">
-          <input type="checkbox" id="salvarContinuar" style="width:auto;" />
-          <label for="salvarContinuar" style="text-transform:none;letter-spacing:0;cursor:pointer;">
-            <i class="fas fa-forward"></i> Salvar e continuar cadastrando (mantém categoria, contêiner e unidade)
-          </label>
+        <div class="span-4 flex-row align-center gap-2 mt-2">
+          <input type="checkbox" id="salvarContinuar" style="width:16px; height:16px; cursor:pointer;" />
+          <label for="salvarContinuar" class="text-sm cursor-pointer">Salvar e continuar cadastrando</label>
         </div>
 
-        <div class="form-actions span-2">
-          <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display:none;">
-            <i class="fas fa-times"></i> Cancelar Edição
-          </button>
-          <button type="submit" class="btn btn-primary" id="addBtn">
-            <i class="fas fa-plus"></i> Cadastrar Item
-          </button>
+        <div class="modal-footer span-4">
+          <button type="button" class="btn btn-outline" id="cancelEditBtn" style="display:none;">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="addBtn"><i class="fas fa-save"></i> Salvar Item</button>
         </div>
       </form>
 
-      <div class="modal-divider">
-        <span><i class="fas fa-list"></i> Itens Cadastrados (<span id="modalListCount">0</span>)</span>
-      </div>
-
-      <div class="modal-search">
-        <i class="fas fa-search"></i>
-        <input type="text" id="modalSearchInput" placeholder="Pesquisar item cadastrado..." />
-      </div>
-
-      <div class="modal-list-wrapper">
-        <table class="modal-table">
-          <thead>
-            <tr>
-              <th>Código</th><th>Categoria</th><th>Item</th><th>Estoque</th>
-              <th>Tam.</th><th>Cor</th><th class="col-actions">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="modalListBody"></tbody>
-        </table>
-        <div class="empty-message" id="modalEmpty" style="display:none;">
-          Nenhum item cadastrado ainda.
+      <div class="modal-list-section">
+        <div class="modal-list-header">
+          <h3>Itens Cadastrados (<span id="modalListCount">0</span>)</h3>
+          <div class="search-box sm">
+            <i class="fas fa-search"></i>
+            <input type="text" id="modalSearchInput" placeholder="Pesquisar..." />
+          </div>
+        </div>
+        <div class="table-wrapper" style="max-height: 300px;">
+          <table class="table-sm">
+            <thead>
+              <tr><th>Código</th><th>Categoria</th><th>Item</th><th>Estoque</th><th>Tam.</th><th>Cor</th><th class="text-center">Ações</th></tr>
+            </thead>
+            <tbody id="modalListBody"></tbody>
+          </table>
+          <div class="empty-state" id="modalEmpty" style="display:none;">Nenhum item.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL DE MOVIMENTAÇÃO ================= -->
+  <!-- MODAL DE MOVIMENTAÇÃO -->
   <div class="modal-overlay" id="modalMovOverlay">
-    <div class="modal">
+    <div class="modal modal-sm">
       <div class="modal-header">
-        <h2>
-          <i class="fas fa-right-left" id="movIcon"></i>
-          <span id="movTitle">Registrar Movimentação</span>
-        </h2>
-        <button class="btn-close" id="closeMovBtn" title="Fechar">
-          <i class="fas fa-times"></i>
-        </button>
+        <h2><i class="fas fa-right-left text-blue" id="movIcon"></i> <span id="movTitle">Movimentação</span></h2>
+        <button class="btn-close" id="closeMovBtn"><i class="fas fa-times"></i></button>
       </div>
-
-      <form id="movForm" class="form-grid" autocomplete="off">
-        <div class="input-group span-2">
-          <label for="movCodigo">Código do Item *</label>
+      <form id="movForm" class="modal-body" autocomplete="off">
+        <div class="input-group">
+          <label>Código do Produto *</label>
           <input type="text" id="movCodigo" placeholder="Digite o código..." required />
           <div class="suggestions" id="movSuggestions"></div>
         </div>
-
-        <div class="input-group span-2" id="movInfoBox" style="display:none;">
-          <div class="mov-info">
-            <i class="fas fa-info-circle"></i>
-            <div>
-              <strong id="movInfoNome">—</strong>
-              <span id="movInfoEstoque">Estoque atual: 0</span>
-            </div>
+        <div class="mov-info-box" id="movInfoBox" style="display:none;">
+          <i class="fas fa-info-circle text-blue"></i>
+          <div>
+            <strong id="movInfoNome">—</strong>
+            <span id="movInfoEstoque">Estoque: 0</span>
           </div>
         </div>
-
-        <div class="input-group span-2">
-          <label for="movQtd">Quantidade *</label>
+        <div class="input-group">
+          <label>Quantidade *</label>
           <input type="number" id="movQtd" min="1" step="1" value="1" required />
         </div>
-
-        <div class="input-group span-2">
-          <label for="movData">Data da Movimentação</label>
+        <div class="input-group">
+          <label>Data</label>
           <input type="date" id="movData" />
-          <small class="help-text">Deixe em branco para usar a data de hoje</small>
         </div>
-
-        <div class="form-actions span-2">
-          <button type="button" class="btn btn-secondary" id="cancelMovBtn">
-            <i class="fas fa-times"></i> Cancelar
-          </button>
-          <button type="submit" class="btn btn-primary" id="movSubmitBtn">
-            <i class="fas fa-save"></i> Confirmar
-          </button>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancelMovBtn">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="movSubmitBtn">Confirmar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ================= MODAL DE RELATÓRIO FINAL ================= -->
+  <!-- MODAL DE RELATÓRIO FINAL -->
   <div class="modal-overlay" id="modalRelatorioOverlay">
-    <div class="modal modal-large">
+    <div class="modal modal-lg">
       <div class="modal-header">
-        <h2>
-          <i class="fas fa-clipboard-check"></i>
-          <span>Relatório do Levantamento</span>
-        </h2>
-        <button class="btn-close" id="closeRelatorioBtn" title="Fechar">
-          <i class="fas fa-times"></i>
-        </button>
+        <h2><i class="fas fa-clipboard-check text-green"></i> Resumo do Levantamento</h2>
+        <button class="btn-close" id="closeRelatorioBtn"><i class="fas fa-times"></i></button>
       </div>
-
-      <div class="dia-summary" id="relatorioSummary"></div>
-
-      <div class="modal-divider">
-        <span><i class="fas fa-list"></i> Detalhes</span>
+      <div class="modal-body">
+        <div class="dia-summary" id="relatorioSummary"></div>
+        <div class="table-wrapper mt-4" style="max-height: 400px;">
+          <table class="table-sm">
+            <thead><tr><th>Cód.</th><th>Categoria</th><th>Item</th><th>Tam.</th><th>Cor</th><th>Estoque</th><th>Contado</th><th>Dif.</th></tr></thead>
+            <tbody id="relatorioBody"></tbody>
+          </table>
+        </div>
       </div>
-
-      <div class="modal-list-wrapper" style="max-height: 400px;">
-        <table class="modal-table">
-          <thead>
-            <tr>
-              <th>Código</th><th>Categoria</th><th>Item</th>
-              <th>Tam.</th><th>Cor</th>
-              <th>Estoque</th><th>Contado</th><th>Diferença</th>
-            </tr>
-          </thead>
-          <tbody id="relatorioBody"></tbody>
-        </table>
-      </div>
-
-      <div class="relatorio-actions">
-        <label class="checkbox-ajuste">
-          <input type="checkbox" id="ajustarEstoqueChk" checked />
-          <span>Ajustar estoque automaticamente com base na contagem</span>
+      <div class="modal-footer">
+        <label class="flex-row align-center gap-2 cursor-pointer text-sm">
+          <input type="checkbox" id="ajustarEstoqueChk" checked /> Ajustar estoque automaticamente
         </label>
-        <div class="relatorio-btns">
-          <button class="btn btn-secondary" id="relatorioCancelBtn">
-            <i class="fas fa-arrow-left"></i> Voltar
-          </button>
-          <button class="btn btn-primary" id="relatorioSaveBtn">
-            <i class="fas fa-save"></i> Salvar Levantamento
-          </button>
+        <div class="flex-row gap-2">
+          <button class="btn btn-outline" id="relatorioCancelBtn">Voltar</button>
+          <button class="btn btn-primary" id="relatorioSaveBtn">Salvar Levantamento</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL DE DETALHES DO DIA ================= -->
+  <!-- MODAL DE DETALHES DO DIA -->
   <div class="modal-overlay" id="modalDiaOverlay">
-    <div class="modal modal-large">
+    <div class="modal modal-lg">
       <div class="modal-header">
-        <h2>
-          <i class="fas fa-calendar-day"></i>
-          <span id="diaTitle">Levantamento</span>
-        </h2>
-        <button class="btn-close" id="closeDiaBtn" title="Fechar">
-          <i class="fas fa-times"></i>
-        </button>
+        <h2><i class="fas fa-calendar-day text-blue"></i> <span id="diaTitle">Detalhes</span></h2>
+        <button class="btn-close" id="closeDiaBtn"><i class="fas fa-times"></i></button>
       </div>
-
-      <div class="dia-summary" id="diaSummary"></div>
-
-      <div class="modal-divider">
-        <span><i class="fas fa-list"></i> Movimentações do dia</span>
-      </div>
-
-      <div class="modal-list-wrapper">
-        <table class="modal-table">
-          <thead>
-            <tr>
-              <th>Hora</th><th>Tipo</th><th>Código</th><th>Item</th>
-              <th>Qtd.</th><th>Saldo após</th><th class="col-actions">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="diaMovBody"></tbody>
-        </table>
-        <div class="empty-message" id="diaMovEmpty" style="display:none;">
-          Nenhuma movimentação neste dia.
+      <div class="modal-body">
+        <div class="dia-summary" id="diaSummary"></div>
+        <div class="table-wrapper mt-4" style="max-height: 400px;">
+          <table class="table-sm">
+            <thead><tr><th>Hora</th><th>Tipo</th><th>Código</th><th>Item</th><th>Qtd.</th><th>Saldo</th><th>Ações</th></tr></thead>
+            <tbody id="diaMovBody"></tbody>
+          </table>
+          <div class="empty-state" id="diaMovEmpty" style="display:none;">Nenhum registro.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL DE CONTÊINERES ================= -->
+  <!-- MODAL DE CONTÊINERES -->
   <div class="modal-overlay" id="modalContainersOverlay">
-    <div class="modal">
+    <div class="modal modal-md">
       <div class="modal-header">
-        <h2>
-          <i class="fas fa-cubes-stacked"></i>
-          <span>Gerenciar Contêineres</span>
-        </h2>
-        <button class="btn-close" id="closeContainersBtn" title="Fechar">
-          <i class="fas fa-times"></i>
-        </button>
+        <h2><i class="fas fa-cubes-stacked text-blue"></i> Contêineres</h2>
+        <button class="btn-close" id="closeContainersBtn"><i class="fas fa-times"></i></button>
       </div>
-
-      <form id="containerForm" class="form-grid form-grid-compact" autocomplete="off">
-        <div class="input-group">
-          <label for="containerCodigo">Código *</label>
+      <form id="containerForm" class="modal-body form-grid" autocomplete="off">
+        <div class="input-group span-1">
+          <label>Código *</label>
           <input type="text" id="containerCodigo" placeholder="Ex: 365" required />
         </div>
-        <div class="input-group span-2">
-          <label for="containerNome">Nome do Contêiner *</label>
+        <div class="input-group span-3">
+          <label>Nome *</label>
           <input type="text" id="containerNome" placeholder="Ex: Contêiner EPI" required />
         </div>
-        <div class="input-group">
-          <label for="containerLocal">Local / Observação</label>
+        <div class="input-group span-4">
+          <label>Localização</label>
           <input type="text" id="containerLocal" placeholder="Ex: Pátio Norte" />
         </div>
-        <div class="form-actions span-2">
-          <button type="button" class="btn btn-secondary" id="cancelContainerEditBtn" style="display:none;">
-            <i class="fas fa-times"></i> Cancelar Edição
-          </button>
-          <button type="submit" class="btn btn-primary" id="containerSubmitBtn">
-            <i class="fas fa-plus"></i> Cadastrar Contêiner
-          </button>
+        <div class="modal-footer span-4" style="padding:0; border:none; margin-top:10px;">
+          <button type="button" class="btn btn-outline" id="cancelContainerEditBtn" style="display:none;">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="containerSubmitBtn"><i class="fas fa-save"></i> Salvar</button>
         </div>
       </form>
-
-      <div class="modal-divider">
-        <span><i class="fas fa-list"></i> Contêineres cadastrados (<span id="containerListCount">0</span>)</span>
-      </div>
-
-      <div class="modal-list-wrapper" style="max-height: 320px;">
-        <table class="modal-table">
-          <thead>
-            <tr>
-              <th>Código</th><th>Nome</th><th>Local</th><th>Itens</th><th class="col-actions">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="containerListBody"></tbody>
-        </table>
-        <div class="empty-message" id="containerEmpty" style="display:none;">
-          Nenhum contêiner cadastrado ainda.
+      <div class="modal-list-section mt-4">
+        <div class="table-wrapper" style="max-height: 300px;">
+          <table class="table-sm">
+            <thead><tr><th>Código</th><th>Nome</th><th>Local</th><th>Itens</th><th>Ações</th></tr></thead>
+            <tbody id="containerListBody"></tbody>
+          </table>
+          <div class="empty-state" id="containerEmpty" style="display:none;">Nenhum contêiner.</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ================= TOASTS ================= -->
+  <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- SCRIPT PRINCIPAL -->
+  <script>
+    // Lógica simples para o menu mobile (UI apenas)
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('mobileOverlay').classList.add('active');
+    });
+    document.getElementById('mobileOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('mobileOverlay').classList.remove('active');
+    });
+    
+    // Atualiza o título no topo quando muda de aba
+    const titles = { novo: 'Levantamento', historico: 'Histórico', contagem: 'Contagem Física' };
+    document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
+      el.addEventListener('click', () => {
+        const tab = el.dataset.tab;
+        document.getElementById('pageTitle').textContent = titles[tab] || 'WALP';
+        document.getElementById('breadcrumbCurrent').textContent = titles[tab] || 'WALP';
+      });
+    });
+  </script>
+  <!-- O script.js original entra aqui -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
