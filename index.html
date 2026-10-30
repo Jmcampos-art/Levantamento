@@ -24,6 +24,12 @@
 </head>
 <body>
 
+  <!-- ELEMENTOS OCULTOS (Necessários para o script.js original funcionar sem erros) -->
+  <div style="display:none;">
+    <button id="themeToggleBtn"></button>
+    <span id="cloudStatusText"></span>
+  </div>
+
   <!-- OVERLAY MOBILE -->
   <div class="mobile-overlay" id="mobileOverlay"></div>
 
@@ -33,13 +39,13 @@
       <div class="logo-area">
         <div class="logo-icon">
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="24" cy="24" r="22" stroke="var(--primary)" stroke-width="4"/>
-            <path d="M12 16h6l6 10 6-10h6v16h-6V22l-6 10-6-10v10h-6V16z" fill="var(--primary)"/>
+            <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="3"/>
+            <path d="M12 16h6l6 10 6-10h6v16h-6V22l-6 10-6-10v10h-6V16z" fill="currentColor"/>
           </svg>
         </div>
         <div class="logo-text">
           <strong>WALP</strong>
-          <span>Gestão de EPIs</span>
+          <span>Gestão Inteligente</span>
         </div>
       </div>
     </div>
@@ -66,9 +72,9 @@
     <div class="sidebar-footer">
       <div class="cloud-status">
         <i class="fas fa-cloud" id="cloudStatus"></i>
-        <span id="cloudStatusText">Conectando...</span>
+        <span>Status: Online</span>
       </div>
-      <div class="version">v3.1 Enterprise</div>
+      <div class="version">v3.2 Pro</div>
     </div>
   </aside>
 
@@ -104,7 +110,7 @@
       </div>
     </header>
 
-    <!-- Barra de Ferramentas Global (Filtros) -->
+    <!-- Barra de Ferramentas Global -->
     <section class="container-selector-bar">
       <div class="container-selector-left">
         <div class="icon-box"><i class="fas fa-cubes"></i></div>
@@ -124,7 +130,7 @@
       <!-- ================= ABA: NOVO LEVANTAMENTO ================= -->
       <div id="tabNovo" class="tab-content active">
         
-        <!-- Painel de Resumo (Cards) -->
+        <!-- Painel de Resumo -->
         <section class="summary-panel">
           <div class="summary-card">
             <div class="summary-icon bg-blue"><i class="fas fa-cubes-stacked"></i></div>
@@ -343,7 +349,6 @@
   </main>
 
   <!-- ================= MODAIS ================= -->
-  <!-- (Mantidos exatamente com os mesmos IDs para o JS continuar funcionando) -->
 
   <!-- MODAL DE CADASTRO -->
   <div class="modal-overlay" id="modalOverlay">
@@ -570,9 +575,8 @@
   <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- SCRIPT PRINCIPAL -->
+  <!-- SCRIPT UI BÁSICO -->
   <script>
-    // Lógica simples para o menu mobile (UI apenas)
     document.getElementById('mobileMenuBtn').addEventListener('click', () => {
       document.getElementById('sidebar').classList.add('open');
       document.getElementById('mobileOverlay').classList.add('active');
@@ -582,7 +586,6 @@
       document.getElementById('mobileOverlay').classList.remove('active');
     });
     
-    // Atualiza o título no topo quando muda de aba
     const titles = { novo: 'Levantamento', historico: 'Histórico', contagem: 'Contagem Física' };
     document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
       el.addEventListener('click', () => {
@@ -592,7 +595,7 @@
       });
     });
   </script>
-  <!-- O script.js original entra aqui -->
+  <!-- O script.js original -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
