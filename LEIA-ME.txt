@@ -1,33 +1,17 @@
-WALP ENTERPRISE 4.0 — PAINEL ADMINISTRATIVO SIMPLIFICADO
+WALP Enterprise 4.0 — Correção de transferência de filial
 
-Pacote cumulativo: inclui a atualização anterior de consulta de contêiner por 3 dígitos e agora a gestão de filiais e contêineres.
+1. Faça backup do repositório e do Firebase Realtime Database antes de publicar.
+2. No GitHub, substitua enterprise.js (raiz) e backend/logic.js pelos arquivos deste pacote.
+3. Mantenha os outros arquivos do pacote anterior, inclusive admin-simple.css e index.html.
+4. Confirme os deploys do Netlify (frontend) e Render (backend).
+5. Entre como administrador, abra Contêineres > Editar, escolha uma filial existente e ativa e confirme.
+6. Verifique se a filial foi atualizada e se os produtos continuam vinculados ao contêiner.
+7. Verifique o evento containerBranchTransferred em audit no Firebase.
 
-Arquivos para substituir/adicionar no repositório Jmcampos-art/Levantamento:
-- index.html (substituir, raiz)
-- enterprise.js (substituir, raiz)
-- admin-simple.css (ADICIONAR, raiz)
-- backend/logic.js (substituir, pasta backend)
+Todos os administradores cadastrados em admins/<UID> com active=true podem transferir.
+Registros antigos de movimentações e levantamentos mantêm a filial histórica; os novos usam a filial atual do contêiner.
+Funcionários previamente associados à filial antiga não são automaticamente transferidos.
+A transferência de filial não altera os códigos de acesso ou o estoque do contêiner.
 
-NÃO remova os demais arquivos, principalmente enterprise.css e config.js.
-Não coloque credenciais ou chaves privadas do Firebase no GitHub.
-
-PAINEL ADMINISTRATIVO
-- Filiais: adicionar, editar nome/código/status, apagar somente quando não houver vínculos/histórico.
-- Contêineres: adicionar, editar nome/código/status, apagar somente quando não houver produtos/histórico/permissões.
-- Contêiner com dados associados: use Editar > Inativo, preservando o histórico.
-- Contêiner: configurar código de consulta de três dígitos.
-- Os demais módulos continuam disponíveis.
-- O administrador continua com e-mail/senha; a consulta do funcionário exige somente o código de 3 dígitos e NÃO libera movimentações.
-
-PUBLICAÇÃO
-1. Faça backup dos arquivos atuais.
-2. Atualize os quatro arquivos nos caminhos acima, de preferência em um mesmo commit.
-3. Espere Render e Netlify publicarem as mudanças.
-4. Entre no painel admin > Filiais / Contêineres e teste com registros de demonstração.
-5. Antes de usar em produção, valide regras de banco, concorrência e testes completos.
-
-LIMITAÇÕES
-- A integração GitHub do ChatGPT recusou gravação com erro 403; o ZIP não foi publicado automaticamente.
-- Verificação feita: sintaxe JavaScript com node --check. Não houve teste ponta a ponta com Firebase/Render.
-- Exclusão é bloqueada quando existem dados associados para evitar perda acidental.
-- O código curto não é autenticação suficiente para alterações de estoque.
+ATENÇÃO: Não foi possível publicar diretamente no GitHub: a integração retornou 403.
+Teste em ambiente de homologação antes de usar em produção. O pacote não foi testado ponta a ponta.
