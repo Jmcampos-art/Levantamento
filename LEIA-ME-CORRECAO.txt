@@ -1,0 +1,27 @@
+WALP Enterprise 4.0 — Correção do acesso por código de 3 dígitos
+
+DIAGNÓSTICO
+Os logs do Render mostraram HTTP 401 em backend/logic.js na leitura de viewerCodeIndex.
+O número mostrado no cartão do contêiner é a identificação (campo codigo), não necessariamente o código de consulta. O login só aceita códigos explicitamente salvos em "Código de acesso para consulta".
+
+CORREÇÕES
+1. Backend recupera índice viewerCodeIndex ausente se o código já foi configurado no viewerAccessHash de exatamente um contêiner ativo.
+2. Salvar código reserva o índice com transação e mantém o vínculo com o contêiner.
+3. Admin mostra se o código de consulta foi configurado e explica a diferença entre identificação e senha.
+4. Login mantém consulta somente leitura, isolada por contêiner. Admin continua com e-mail e senha.
+5. Apenas um formulário de código é criado pelo código da página de contêineres.
+
+PUBLICAÇÃO
+Faça backup do repositório antes de substituir arquivos.
+Copie os arquivos deste ZIP para a raiz do repositório, preservando a pasta backend/.
+O GitHub deve disparar o deploy do Netlify e do Render. Aguarde ambos concluírem.
+No WALP: Administração > Contêineres > Código de acesso para consulta > selecione o contêiner > digite 361 (ou outro código ainda não usado) > Salvar código.
+A identificação exibida no cartão NÃO configura automaticamente a senha de consulta.
+Depois encerre a sessão administrativa e teste o código de consulta na tela inicial.
+
+SEGURANÇA
+Um código de 3 dígitos tem só 1.000 combinações e NÃO deve autorizar movimentações, edições ou informações sensíveis. Mantenha esta tela somente para consulta não sensível. Para uso real, considere códigos maiores ou autenticação individual.
+Não envie chaves privadas do Firebase e não inclua arquivos .env no GitHub.
+
+TESTES
+Sintaxe JavaScript: node --check nos arquivos JS. Não foi possível executar testes reais contra o Firebase da sua conta.

@@ -1,3 +1,2 @@
-// Substitua pela URL pública HTTPS do seu serviço Render, seguida de /api.
-// Exemplo: window.WALP_API_URL = 'https://seu-walp-api.onrender.com/api';
+// API do WALP hospedada no Render.
 window.WALP_API_URL = 'https://levantamento-t0wh.onrender.com/api';
