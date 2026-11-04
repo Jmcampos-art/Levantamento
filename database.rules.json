@@ -1,0 +1,1 @@
+{"rules":{".read":false,".write":false,"catalogo":{".indexOn":["containerId"]},"movimentacoes":{".indexOn":["containerId"]},"levantamentos":{".indexOn":["containerId"]}}}
