@@ -100,6 +100,26 @@ const api=async(req,res)=>{try{
    await db.ref(`${collection}/${recordId}`).update({...safe,updatedAt:now()});
    await log('adminSave',who.uid,collection==='containers'?recordId:safe.containerId,{collection,recordId});return response(res,200,{id:recordId});
  }
+ if(action==='adminDelete'){
+   const who=await adminOnly(req),collection=clean(payload.collection),id=clean(payload.id);
+   if(!['branches','containers'].includes(collection)||!/^[a-zA-Z0-9_-]{1,100}$/.test(id))throw fail(400,'Exclusão inválida');
+   const ref=db.ref(`${collection}/${id}`),snap=await ref.get();if(!snap.exists())throw fail(404,'Registro não encontrado');
+   // Exclusão só de cadastros vazios: preserva estoque, histórico, funcionários e auditoria.
+   const [containers,employees,products,movements,counts]=await Promise.all(['containers','employees','catalogo','movimentacoes','levantamentos'].map(path=>db.ref(path).get()));
+   const list=s=>Object.values(s.val()||{});
+   if(collection==='branches'){
+     if(list(containers).some(x=>x.branchId===id)||list(employees).some(x=>x.branchId===id)||list(movements).some(x=>x.branchId===id)||list(counts).some(x=>x.branchId===id))throw fail(409,'Esta filial possui contêineres, funcionários ou histórico. Remova os vínculos antes de apagar.');
+     await log('adminDelete',who.uid,null,{collection,id});await ref.remove();return response(res,200,{ok:true});
+   }
+   if(list(products).some(x=>x.containerId===id)||list(movements).some(x=>x.containerId===id)||list(counts).some(x=>x.containerId===id))throw fail(409,'Este contêiner possui produtos ou histórico. Não é possível apagá-lo; marque-o como Inativo em Editar.');
+   const [permissions,operationKeys]=await Promise.all([db.ref('permissions').get(),db.ref('operationKeys').get()]);
+   if(Object.values(permissions.val()||{}).some(p=>p&&p[id]===true)||Object.values(operationKeys.val()||{}).some(v=>v?.containerId===id))throw fail(409,'Este contêiner tem permissões ou operações vinculadas. Marque-o como Inativo.');
+   const updates={[`containers/${id}`]:null};
+   if(snap.val().viewerAccessHash)updates[`viewerCodeIndex/${snap.val().viewerAccessHash}`]=null;
+   if(snap.val().accessHash)updates[`containerAccessIndex/${snap.val().accessHash}`]=null;
+   await log('adminDelete',who.uid,id,{collection,id});await db.ref().update(updates);
+   return response(res,200,{ok:true});
+ }
  if(action==='adminSetAccess'){
    const who=await adminOnly(req),containerId=clean(payload.containerId),code=clean(payload.code);if(code.length<16)throw fail(400,'Código deve ter pelo menos 16 caracteres');
    const c=await db.ref(`containers/${containerId}`).get();if(!c.exists())throw fail(404,'Contêiner não encontrado');
