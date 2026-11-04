@@ -1,0 +1,7 @@
+WALP — entrada e saída sem funcionários
+
+Alterações: login por código de 3 dígitos; consulta de estoque; movimentação de entrada/saída com transação atômica, prevenção de saldo negativo e chave de idempotência; histórico por contêiner; remoção de Funcionários do painel e do cadastro administrativo. Dados antigos de funcionários são preservados no Firebase para evitar perda de histórico.
+
+IMPORTANTE: o código de 3 dígitos não oferece autenticação forte. Qualquer pessoa que o conheça pode alterar o estoque. Use apenas em ambiente controlado.
+
+Envie os arquivos para a raiz do GitHub preservando as pastas. O Render precisa publicar backend/logic.js e o Netlify enterprise.js/index.html. Teste com um contêiner de demonstração antes de usar no trabalho.
