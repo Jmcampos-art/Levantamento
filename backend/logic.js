@@ -55,9 +55,36 @@ const api=async(req,res)=>{try{
  }
  if(action==='viewerData'){
    const who=await viewer(req);
-   const [catalog,branch]=await Promise.all([db.ref('catalogo').get(),db.ref(`branches/${who.container.branchId}`).get()]);
+   const [catalog,branch,movs]=await Promise.all([db.ref('catalogo').get(),db.ref(`branches/${who.container.branchId}`).get(),db.ref('movimentacoes').get()]);
    const products=Object.fromEntries(Object.entries(catalog.val()||{}).filter(([,p])=>p&&p.containerId===who.containerId));
-   return response(res,200,{container:{id:who.containerId,name:who.container.nome,codigo:who.container.codigo},branch:branch.val()?.nome||'',products});
+   return response(res,200,{container:{id:who.containerId,name:who.container.nome,codigo:who.container.codigo},branch:branch.val()?.nome||'',products,movements:Object.fromEntries(Object.entries(movs.val()||{}).filter(([,m])=>m?.containerId===who.containerId).sort((a,b)=>(b[1].at||0)-(a[1].at||0)).slice(0,50))});
+ }
+ if(action==='viewerMovement'){
+   const who=await viewer(req);
+   const productId=clean(payload.productId),type=clean(payload.type),amount=Number(payload.quantity),requestId=clean(payload.requestId);
+   if(!/^[a-zA-Z0-9_-]{8,100}$/.test(requestId)||!['entrada','saida'].includes(type)||!Number.isSafeInteger(amount)||amount<1||amount>100000)throw fail(400,'Movimentação inválida');
+   const pRef=db.ref(`catalogo/${productId}`),snapshot=await pRef.get();
+   if(!snapshot.exists()||snapshot.val().containerId!==who.containerId)throw fail(403,'Produto não pertence ao contêiner');
+   const key=db.ref(`operationKeys/${requestId}`);
+   const claim=await key.transaction(v=>v===null?{containerId:who.containerId,at:now(),status:'processing'}:undefined);
+   if(!claim.committed)throw fail(409,'Esta movimentação já foi enviada. Atualize o estoque antes de tentar novamente.');
+   let before=0,after=0;
+   try{
+     const tx=await pRef.transaction(v=>{
+       if(!v||v.containerId!==who.containerId)return;
+       const qty=Number(v.quantidade??0);
+       if(!Number.isSafeInteger(qty)||qty<0)return;
+       const next=qty+(type==='entrada'?amount:-amount);
+       if(next<0)return;
+       before=qty;after=next;
+       return {...v,quantidade:next,updatedAt:now()};
+     });
+     if(!tx.committed)throw fail(409,'Estoque insuficiente ou produto inválido');
+     const movement={id:requestId,containerId:who.containerId,branchId:who.container.branchId,productId,type,quantity:amount,before,after,at:now(),note:clean(payload.note).slice(0,300),source:'codigo-conteiner'};
+     await db.ref().update({[`movimentacoes/${requestId}`]:movement,[`operationKeys/${requestId}/status`]:'done'});
+     await log('viewerMovement','codigo-conteiner',who.containerId,{requestId,type,productId});
+     return response(res,200,movement);
+   }catch(e){await key.child('status').set('needsReview');throw e}
  }
  if(action==='adminSetViewerCode'){
    const who=await adminOnly(req),containerId=clean(payload.containerId),code=clean(payload.code);
@@ -96,12 +123,12 @@ const api=async(req,res)=>{try{
    }catch(e){a.count++;a.until=a.count>=5?now()+15*60*1000:0;attempts.set(key,a);throw e.status===429?e:fail(401,'Credenciais inválidas')}
  }
  if(action==='adminOverview'||action==='adminList'){
-   await adminOnly(req);const paths=['branches','containers','employees','catalogo','movimentacoes','levantamentos'];const values=await Promise.all(paths.map(p=>db.ref(p).get()));
+   await adminOnly(req);const paths=['branches','containers','catalogo','movimentacoes','levantamentos'];const values=await Promise.all(paths.map(p=>db.ref(p).get()));
    return response(res,200,Object.fromEntries(paths.map((p,i)=>[p,values[i].val()||{}])));
  }
  if(action==='adminSave'){
    const who=await adminOnly(req),{collection,id,data}=payload;
-   const allowed=['branches','containers','employees','catalogo'];if(!allowed.includes(collection)||!data||typeof data!=='object'||Array.isArray(data))throw fail(400,'Dados inválidos');
+   const allowed=['branches','containers','catalogo'];if(!allowed.includes(collection)||!data||typeof data!=='object'||Array.isArray(data))throw fail(400,'Dados inválidos');
    const recordId=clean(id)||uid();if(!/^[a-zA-Z0-9_-]{1,100}$/.test(recordId))throw fail(400,'ID inválido');
    const safe={...data};delete safe.pinHash;delete safe.pinSalt;delete safe.accessCode;delete safe.codeHash;delete safe.viewerAccessHash;delete safe.stock;delete safe.quantity;
    if(collection==='employees'){
