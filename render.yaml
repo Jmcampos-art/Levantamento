@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: walp-enterprise-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

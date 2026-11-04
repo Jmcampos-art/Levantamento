@@ -10,3 +10,7 @@
   aside nav{scrollbar-width:thin}
   main{min-height:60dvh}
 }
+
+/* Marca WALP com letra A legível */
+.logo span{color:#2563eb;letter-spacing:0} .logo{white-space:nowrap}
+@media(max-width:480px){.auth{padding:14px}.login-card{width:100%;padding:24px 20px}.login-card h1{font-size:clamp(25px,7vw,34px)}.login-card p{line-height:1.5}}

@@ -2,11 +2,11 @@ import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase
 import {getAuth,signInWithEmailAndPassword,signInWithCustomToken,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 const config={apiKey:'AIzaSyDeMwUeu-3chnjCpxzTdySFFAkv1s65sw8',authDomain:'levantamento-epi.firebaseapp.com',databaseURL:'https://levantamento-epi-default-rtdb.asia-southeast1.firebasedatabase.app',projectId:'levantamento-epi',storageBucket:'levantamento-epi.firebasestorage.app',messagingSenderId:'655234363827',appId:'1:655234363827:web:9c449858e2dad1eef29bc6'};
 const auth=getAuth(initializeApp(config));
-const API='https://asia-southeast1-levantamento-epi.cloudfunctions.net/api';
+const API=String(window.WALP_API_URL||'').replace(/\/$/,'');
 const $=id=>document.getElementById(id),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const entries=o=>Object.entries(o||{}).map(([id,v])=>({id,...v}));
 let role=null,data={},tab='Dashboard';
-async function call(action,payload={}){const token=auth.currentUser?await auth.currentUser.getIdToken():null;const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({action,payload})});const v=await r.json();if(!r.ok)throw Error(v.error||'Erro de conexão');return v}
+async function call(action,payload={}){if(!API)throw Error('Backend não configurado. Defina a URL do Render em config.js.');const token=auth.currentUser?await auth.currentUser.getIdToken():null;let r;try{r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({action,payload})})}catch(e){throw Error('Não foi possível conectar ao backend. Verifique a URL do Render, a disponibilidade do serviço e o CORS.')}let v;try{v=await r.json()}catch{throw Error('Resposta inválida do backend (HTTP '+r.status+').')}if(!r.ok)throw Error(v.error||'Erro HTTP '+r.status);return v}
 const message=(msg,login=false)=>{(login?$('loginMsg'):$('notice')).textContent=msg||''};
 const card=(label,value)=>`<div class="card"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`;
 const table=(headers,rows)=>`<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${headers.length}" class="muted">Nenhum registro</td></tr>`}</tbody></table>`;
