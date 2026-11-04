@@ -31,10 +31,23 @@ const api=async(req,res)=>{try{
    // Janela conservadora por IP; para produção, adicionar proteção distribuída no edge.
    a.count++; if(a.count>=5)a.until=now()+60*60*1000;
    attempts.set(key,a);
-   const h=hash(code),index=await db.ref(`viewerCodeIndex/${h}`).get();
-   if(!index.exists())throw fail(401,'Código inválido');
-   const containerId=index.val(),container=await db.ref(`containers/${containerId}`).get();
-   if(!container.exists()||container.val().active!==true||container.val().viewerAccessHash!==h)throw fail(401,'Código inválido');
+   const h=hash(code),indexRef=db.ref(`viewerCodeIndex/${h}`);
+   const index=await indexRef.get();
+   let containerId=index.exists()?index.val():null;
+   let container=containerId?await db.ref(`containers/${containerId}`).get():null;
+   // Recupera índices ausentes após migração, mas APENAS quando um administrador
+   // já configurou este código no próprio contêiner. Nunca usa 'codigo' público.
+   if(!containerId){
+     const matches=await db.ref('containers').orderByChild('viewerAccessHash').equalTo(h).get();
+     const candidates=Object.entries(matches.val()||{}).filter(([,v])=>v&&v.active===true);
+     if(candidates.length===1){
+       containerId=candidates[0][0];
+       container=await db.ref(`containers/${containerId}`).get();
+       const claim=await indexRef.transaction(v=>v===null?containerId:undefined);
+       if(!claim.committed){const current=await indexRef.get();if(current.val()!==containerId)throw fail(401,'Código inválido')}
+     }
+   }
+   if(!containerId||!container?.exists()||container.val().active!==true||container.val().viewerAccessHash!==h)throw fail(401,'Código inválido. Peça ao administrador para salvar o código de consulta deste contêiner.');
    attempts.delete(key);
    const token=await admin.auth().createCustomToken(`walp-viewer-${containerId}`,{walpRole:'viewer',containerId,viewerAccessHash:h});
    await log('viewerLogin','containerViewer',containerId);
@@ -49,12 +62,22 @@ const api=async(req,res)=>{try{
    const who=await adminOnly(req),containerId=clean(payload.containerId),code=clean(payload.code);
    if(!/^[0-9]{3}$/.test(code))throw fail(400,'O código de consulta deve ter exatamente 3 dígitos');
    const ref=db.ref(`containers/${containerId}`),snap=await ref.get();if(!snap.exists())throw fail(404,'Contêiner não encontrado');
-   const h=hash(code),existing=await db.ref(`viewerCodeIndex/${h}`).get();
-   if(existing.exists()&&existing.val()!==containerId)throw fail(409,'Código já utilizado por outro contêiner');
+   const h=hash(code),indexRef=db.ref(`viewerCodeIndex/${h}`);
+   // Não permite que dois contêineres reservem o mesmo código simultaneamente.
+   const claim=await indexRef.transaction(v=>v===null||v===containerId?containerId:undefined);
+   if(!claim.committed)throw fail(409,'Código já utilizado por outro contêiner');
    const old=snap.val().viewerAccessHash;
-   const updates={[`viewerCodeIndex/${h}`]:containerId,[`containers/${containerId}/viewerAccessHash`]:h};
-   if(old&&old!==h)updates[`viewerCodeIndex/${old}`]=null;
-   await db.ref().update(updates);await log('viewerCodeChanged',who.uid,containerId);return response(res,200,{ok:true});
+   try{
+     await db.ref(`containers/${containerId}`).update({viewerAccessHash:h});
+     if(old&&old!==h){
+       const oldRef=db.ref(`viewerCodeIndex/${old}`),previous=await oldRef.get();
+       if(previous.val()===containerId)await oldRef.remove();
+     }
+   }catch(e){
+     if(old!==h){const current=await indexRef.get();if(current.val()===containerId)await indexRef.remove()}
+     throw e;
+   }
+   await log('viewerCodeChanged',who.uid,containerId);return response(res,200,{ok:true});
  }
  // Login de operador antigo mantido para compatibilidade; a interface pública não o utiliza.
  if(action==='loginOperator'){
