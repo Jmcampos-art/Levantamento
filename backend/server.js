@@ -1,0 +1,13 @@
+require('dotenv').config();
+const express=require('express');
+const cors=require('cors');
+const {api}=require('./logic');
+const app=express();
+const allowed=(process.env.ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean);
+app.disable('x-powered-by');
+app.use(express.json({limit:'64kb'}));
+app.use(cors({origin:(origin,cb)=>{if(!origin||allowed.includes(origin))return cb(null,true);return cb(new Error('Origem não autorizada'))},methods:['POST','GET'],allowedHeaders:['Content-Type','Authorization']}));
+app.get('/health',(req,res)=>res.json({status:'ok'}));
+app.post('/api',api);
+app.use((err,req,res,next)=>res.status(403).json({error:'Origem não autorizada'}));
+app.listen(process.env.PORT||10000,'0.0.0.0',()=>console.log('WALP API online'));
