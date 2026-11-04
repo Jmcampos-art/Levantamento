@@ -1,0 +1,43 @@
+WALP ENTERPRISE 4.0 — ALTERACAO SOLICITADA (ACESSO POR 3 DIGITOS)
+
+Este pacote contem ARQUIVOS SUBSTITUTOS para o repositorio:
+https://github.com/Jmcampos-art/Levantamento
+
+Arquivos para atualizar no GitHub:
+  index.html              -> raiz do repositorio (Netlify)
+  enterprise.js           -> raiz do repositorio (Netlify)
+  backend/logic.js        -> pasta backend (Render)
+
+NAO ALTERE os arquivos do Firebase Admin SDK nem adicione chaves privadas ao GitHub.
+
+O QUE MUDA
+- Na tela do funcionario aparece apenas o campo de 3 digitos.
+- Cada codigo de consulta corresponde a um unico conteiner.
+- Admin continua entrando por email e senha do Firebase Auth.
+- Apenas admin cadastrado no Firebase Database em admins/UID/active:true configura codigos.
+- Consulta por 3 digitos permite ver estoque SOMENTE do conteiner e nao altera quantidades.
+- Movimentacoes antigas e demais cadastros permanecem no banco.
+- O endpoint de movimentacao preexistente conserva autenticacao antiga (matricula e PIN).
+- O login de funcionario por codigo curto NAO concede permissao de operador.
+
+COMO USAR
+1. Faca backup dos arquivos originais do GitHub.
+2. Substitua os tres arquivos nos caminhos indicados, preservando os demais.
+3. Confirme que o Render esta configurado e com status Live.
+4. Aguarde o Netlify publicar o commit alterado.
+5. Entre como admin -> Conteineres -> Configurar codigo de consulta.
+6. Selecione o conteiner e defina um codigo de 3 digitos que nao esteja em uso.
+7. Saia e use o formulario de 3 digitos para consultar o estoque.
+
+AVISO DE SEGURANCA
+O codigo de apenas 3 digitos NAO e uma autenticacao adequada para gravacoes,
+informacoes pessoais ou estoque sensivel. O codigo neste pacote esta limitado
+as consultas de produtos e inclui bloqueio basico por tentativas, em memoria.
+Antes de uso real com muitos funcionarios, implemente um limitador distribuido
+no edge e revise as regras do Firebase e a privacidade dos dados.
+
+ESTADO DA ENTREGA
+Foi feita verificacao sintatica com 'node --check' dos arquivos JavaScript.
+Nao foi feita integracao real com o Firebase nem deploy; teste antes da producao.
+O plugin do GitHub recebeu erro 403 ao tentar criar uma branch.
+Logo, esta atualizacao NAO foi aplicada automaticamente no repositorio.
