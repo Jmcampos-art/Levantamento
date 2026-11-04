@@ -38,8 +38,8 @@ const api=async(req,res)=>{try{
    // Recupera índices ausentes após migração, mas APENAS quando um administrador
    // já configurou este código no próprio contêiner. Nunca usa 'codigo' público.
    if(!containerId){
-     const matches=await db.ref('containers').orderByChild('viewerAccessHash').equalTo(h).get();
-     const candidates=Object.entries(matches.val()||{}).filter(([,v])=>v&&v.active===true);
+     const matches=await db.ref('containers').get();
+     const candidates=Object.entries(matches.val()||{}).filter(([,v])=>v&&v.active===true&&v.viewerAccessHash===h);
      if(candidates.length===1){
        containerId=candidates[0][0];
        container=await db.ref(`containers/${containerId}`).get();
@@ -55,8 +55,9 @@ const api=async(req,res)=>{try{
  }
  if(action==='viewerData'){
    const who=await viewer(req);
-   const [catalog,branch]=await Promise.all([db.ref('catalogo').orderByChild('containerId').equalTo(who.containerId).get(),db.ref(`branches/${who.container.branchId}`).get()]);
-   return response(res,200,{container:{id:who.containerId,name:who.container.nome,codigo:who.container.codigo},branch:branch.val()?.nome||'',products:catalog.val()||{}});
+   const [catalog,branch]=await Promise.all([db.ref('catalogo').get(),db.ref(`branches/${who.container.branchId}`).get()]);
+   const products=Object.fromEntries(Object.entries(catalog.val()||{}).filter(([,p])=>p&&p.containerId===who.containerId));
+   return response(res,200,{container:{id:who.containerId,name:who.container.nome,codigo:who.container.codigo},branch:branch.val()?.nome||'',products});
  }
  if(action==='adminSetViewerCode'){
    const who=await adminOnly(req),containerId=clean(payload.containerId),code=clean(payload.code);
