@@ -90,8 +90,18 @@ const api=async(req,res)=>{try{
      delete safe.pin;
    }
    if(collection==='containers'){
-     const old=(await db.ref(`containers/${recordId}`).get()).val();if(old?.branchId&&old.branchId!==data.branchId)throw fail(400,'Filial do contêiner é imutável');
-     if(!clean(data.branchId)||(await db.ref(`branches/${data.branchId}`).get()).exists()===false)throw fail(400,'Filial inválida');
+     const old=(await db.ref(`containers/${recordId}`).get()).val();
+     const newBranchId=clean(data.branchId);
+     if(!/^[a-zA-Z0-9_-]{1,100}$/.test(newBranchId))throw fail(400,'Filial inválida');
+     const branch=await db.ref(`branches/${newBranchId}`).get();
+     if(!branch.exists()||branch.val().active===false)throw fail(400,'Selecione uma filial ativa');
+     safe.branchId=newBranchId;
+     if(old?.branchId&&old.branchId!==newBranchId){
+       // Apenas administradores autorizados podem transferir. Preserva o histórico anterior.
+       await db.ref(`containers/${recordId}`).update({...safe,updatedAt:now()});
+       await log('containerBranchTransferred',who.uid,recordId,{fromBranchId:old.branchId,toBranchId:newBranchId});
+       return response(res,200,{id:recordId,transferred:true});
+     }
    }
    if(collection==='catalogo'){
      if(!clean(data.containerId)||(await db.ref(`containers/${data.containerId}`).get()).exists()===false)throw fail(400,'Contêiner inválido');
