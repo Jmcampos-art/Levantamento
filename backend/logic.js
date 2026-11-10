@@ -97,6 +97,22 @@ const api=async(req,res)=>{try{
    await log('viewerCreateProduct','codigo-conteiner',who.containerId,{id,codigo});
    return response(res,200,{id,ok:true});
  }
+
+ if(action==='viewerEditProduct'){
+   const who=await viewer(req),productId=clean(payload.productId);
+   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(productId))throw fail(400,'Produto inválido');
+   const nome=clean(payload.nome).slice(0,120),codigo=clean(payload.codigo).slice(0,60);
+   if(!nome||!codigo)throw fail(400,'Nome e código são obrigatórios');
+   const ref=db.ref('catalogo/'+productId),existing=await ref.get();
+   if(!existing.exists()||existing.val().containerId!==who.containerId)throw fail(403,'Produto não pertence ao contêiner');
+   const catalog=await db.ref('catalogo').get();
+   if(Object.entries(catalog.val()||{}).some(([id,p])=>id!==productId&&p?.containerId===who.containerId&&clean(p.codigo).toLowerCase()===codigo.toLowerCase()))throw fail(409,'Código já utilizado neste contêiner');
+   const changes={nome,codigo,categoria:clean(payload.categoria).slice(0,80),tamanho:clean(payload.tamanho).slice(0,40),cor:clean(payload.cor).slice(0,40),unidade:clean(payload.unidade).slice(0,20)||'un',updatedAt:now()};
+   const tx=await ref.transaction(p=>p?.containerId===who.containerId?{...p,...changes}:undefined);
+   if(!tx.committed)throw fail(403,'Acesso negado');
+   await log('viewerEditProduct','codigo-conteiner',who.containerId,{productId,changes});
+   return response(res,200,{ok:true});
+ }
  if(action==='viewerCount'){
    const who=await viewer(req),productId=clean(payload.productId),quantity=Number(payload.quantity);
    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(productId)||!Number.isSafeInteger(quantity)||quantity<0||quantity>1000000)throw fail(400,'Dados do levantamento inválidos');
