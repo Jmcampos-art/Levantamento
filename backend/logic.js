@@ -86,6 +86,28 @@ const api=async(req,res)=>{try{
      return response(res,200,movement);
    }catch(e){await key.child('status').set('needsReview');throw e}
  }
+
+ if(action==='viewerCreateProduct'){
+   const who=await viewer(req),nome=clean(payload.nome).slice(0,120),codigo=clean(payload.codigo).slice(0,60),quantidade=Number(payload.quantidade??0);
+   if(!nome||!codigo||!Number.isSafeInteger(quantidade)||quantidade<0||quantidade>1000000)throw fail(400,'Dados do produto inválidos');
+   const catalog=await db.ref('catalogo').get();
+   if(Object.values(catalog.val()||{}).some(p=>p?.containerId===who.containerId&&clean(p.codigo).toLowerCase()===codigo.toLowerCase()))throw fail(409,'Código já cadastrado neste contêiner');
+   const id=uid(),at=now();
+   await db.ref('catalogo/'+id).set({nome,codigo,quantidade,containerId:who.containerId,categoria:clean(payload.categoria).slice(0,80),tamanho:clean(payload.tamanho).slice(0,40),cor:clean(payload.cor).slice(0,40),unidade:clean(payload.unidade).slice(0,20)||'un',createdAt:at,updatedAt:at});
+   await log('viewerCreateProduct','codigo-conteiner',who.containerId,{id,codigo});
+   return response(res,200,{id,ok:true});
+ }
+ if(action==='viewerCount'){
+   const who=await viewer(req),productId=clean(payload.productId),quantity=Number(payload.quantity);
+   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(productId)||!Number.isSafeInteger(quantity)||quantity<0||quantity>1000000)throw fail(400,'Dados do levantamento inválidos');
+   const ref=db.ref('catalogo/'+productId);let before=0;
+   const tx=await ref.transaction(p=>{if(!p||p.containerId!==who.containerId)return;before=Number(p.quantidade||0);return {...p,quantidade:quantity,updatedAt:now()}});
+   if(!tx.committed)throw fail(403,'Produto não pertence ao contêiner');
+   const id=uid(),at=now();
+   await db.ref().update({['levantamentos/'+id]:{id,containerId:who.containerId,branchId:who.container.branchId,productId,before,after:quantity,at,status:'completed',source:'codigo-conteiner'},['movimentacoes/'+id]:{id,containerId:who.containerId,branchId:who.container.branchId,productId,type:'levantamento',quantity:quantity-before,before,after:quantity,at,source:'codigo-conteiner'}});
+   await log('viewerCount','codigo-conteiner',who.containerId,{id,productId,before,after:quantity});
+   return response(res,200,{id,before,after:quantity});
+ }
  if(action==='adminSetViewerCode'){
    const who=await adminOnly(req),containerId=clean(payload.containerId),code=clean(payload.code);
    if(!/^[0-9]{3}$/.test(code))throw fail(400,'O código de consulta deve ter exatamente 3 dígitos');
