@@ -14,3 +14,6 @@
 /* Marca WALP com letra A legível */
 .logo span{color:#2563eb;letter-spacing:0} .logo{white-space:nowrap}
 @media(max-width:480px){.auth{padding:14px}.login-card{width:100%;padding:24px 20px}.login-card h1{font-size:clamp(25px,7vw,34px)}.login-card p{line-height:1.5}}
+
+/* Tabela de estoque responsiva */
+.stock-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.stock-scroll table{min-width:790px}.stock-scroll th,.stock-scroll td{white-space:nowrap}.stock-scroll button{white-space:nowrap}#stockEditor{margin-top:18px}
