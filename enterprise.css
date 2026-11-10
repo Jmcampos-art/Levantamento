@@ -17,3 +17,6 @@
 
 /* Tabela de estoque responsiva */
 .stock-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.stock-scroll table{min-width:790px}.stock-scroll th,.stock-scroll td{white-space:nowrap}.stock-scroll button{white-space:nowrap}#stockEditor{margin-top:18px}
+
+/* Ação de edição visível no início da tabela, inclusive no celular */
+.stock-edit-btn{padding:8px 12px;font-size:13px;background:#dbeafe;color:#1d4ed8}.stock-scroll table{min-width:760px}.stock-scroll th:nth-child(3),.stock-scroll td:nth-child(3){position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 5px #14243a10}.stock-scroll th:nth-child(3){background:#f4f6fa}
