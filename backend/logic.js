@@ -72,14 +72,15 @@ const api=async(req,res)=>{try{
    try{
      const tx=await pRef.transaction(v=>{
        if(!v||v.containerId!==who.containerId)return;
-       const qty=Number(v.quantidade??0);
+       const raw=v.quantidade;
+       const qty=raw===null||raw===undefined||raw===''?0:Number(raw);
        if(!Number.isSafeInteger(qty)||qty<0)return;
-       const next=qty+(type==='entrada'?amount:-amount);
-       if(next<0)return;
+       const next=type==='entrada'?qty+amount:qty-amount;
+       if(!Number.isSafeInteger(next)||next<0)return;
        before=qty;after=next;
        return {...v,quantidade:next,updatedAt:now()};
      });
-     if(!tx.committed)throw fail(409,'Estoque insuficiente ou produto inválido');
+     if(!tx.committed){const latest=await pRef.get();if(!latest.exists()||latest.val().containerId!==who.containerId)throw fail(403,'Produto inválido para este contêiner');const current=Number(latest.val().quantidade??0);if(!Number.isSafeInteger(current)||current<0)throw fail(409,'Quantidade cadastrada inválida. Corrija pelo levantamento.');if(type==='saida'&&current<amount)throw fail(409,'Estoque insuficiente para esta saída');throw fail(409,'Não foi possível atualizar o estoque. Tente novamente.');}
      const movement={id:requestId,containerId:who.containerId,branchId:who.container.branchId,productId,type,quantity:amount,before,after,at:now(),note:clean(payload.note).slice(0,300),source:'codigo-conteiner'};
      await db.ref().update({[`movimentacoes/${requestId}`]:movement,[`operationKeys/${requestId}/status`]:'done'});
      await log('viewerMovement','codigo-conteiner',who.containerId,{requestId,type,productId});
