@@ -5,7 +5,7 @@ const auth=getAuth(initializeApp(config));
 const API=String(window.WALP_API_URL||'').replace(/\/$/,'');
 const $=id=>document.getElementById(id),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const entries=o=>Object.entries(o||{}).map(([id,v])=>({id,...v}));
-let role=null,data={},tab='Dashboard';
+let role=null,data={},tab='Dashboard',selectedBranchId=null;
 async function call(action,payload={}){
   if(!API)throw Error('Backend não configurado. Verifique config.js.');
   const token=auth.currentUser?await auth.currentUser.getIdToken():null;
@@ -19,7 +19,7 @@ const message=(msg,login=false)=>{(login?$('loginMsg'):$('notice')).textContent=
 const card=(label,value)=>`<div class="card"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`;
 const table=(headers,rows)=>`<table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${headers.length}" class="muted">Nenhum registro</td></tr>`}</tbody></table>`;
 const cell=(...values)=>`<tr>${values.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`;
-function nav(){const pages=role==='admin'?['Dashboard','Filiais','Contêineres','Produtos','Movimentações','Levantamentos','Auditoria']:['Dashboard','Estoque','Cadastrar produto','Levantamento','Entrada / Saída','Histórico'];$('nav').innerHTML=pages.map(x=>`<button data-tab="${x}" class="${tab===x?'active':''}">${x}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()})}
+function nav(){const pages=role==='admin'?['Dashboard','Filiais','Contêineres','Produtos','Movimentações','Levantamentos','Auditoria']:['Dashboard','Estoque','Cadastrar produto','Levantamento','Entrada / Saída','Histórico'];$('nav').innerHTML=pages.map(x=>`<button data-tab="${x}" class="${tab===x?'active':''}">${x}</button>`).join('');$('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;selectedBranchId=null;render()})}
 async function load(){data=await call(role==='admin'?'adminOverview':'viewerData');render()}
 function render(){nav();$('heading').textContent=tab;$('context').textContent=role==='admin'?'Administração central':`${data.branch||''} • ${data.container?.name||''}`;$('who').textContent=role==='admin'?auth.currentUser?.email:'Acesso por código';const root=$('content');if(role==='admin')return renderAdmin(root);renderViewer(root)}
 function renderViewer(root){
@@ -56,7 +56,15 @@ function renderViewer(root){
 }
 function renderAdmin(root){
  const branches=entries(data.branches),containers=entries(data.containers),products=entries(data.catalogo),movements=entries(data.movimentacoes),counts=entries(data.levantamentos);
- if(tab==='Dashboard'){root.innerHTML=`<div class="cards">${card('Filiais',branches.length)}${card('Contêineres',containers.length)}${card('Produtos',products.length)}${card('Unidades',products.reduce((a,p)=>a+Number(p.quantidade||0),0))}${card('Levantamentos pendentes',counts.filter(x=>x.status==='pending').length)}</div>`;return}
+ const branchPanel=(branch)=>{const branchContainers=containers.filter(x=>x.branchId===branch.id),ids=new Set(branchContainers.map(x=>x.id)),branchProducts=products.filter(x=>ids.has(x.containerId));return `<div class="panel branch-details"><button type="button" class="secondary" id="backBranches">← Voltar às filiais</button><div class="branch-detail-head"><h2>${esc(branch.nome||branch.codigo||'Filial')}</h2><span class="muted">Código: ${esc(branch.codigo||'—')}</span></div><div class="cards branch-stats">${card('Contêineres',branchContainers.length)}${card('Produtos',branchProducts.length)}${card('Unidades em estoque',branchProducts.reduce((sum,p)=>sum+Number(p.quantidade||0),0))}</div><h3>Contêineres da filial</h3><div class="branch-container-list">${branchContainers.map(x=>{const list=branchProducts.filter(p=>p.containerId===x.id);return `<div class="branch-container"><strong>${esc(x.nome||x.codigo||x.id)}</strong><small>${esc(x.codigo||'')} • ${list.length} produtos • ${list.reduce((sum,p)=>sum+Number(p.quantidade||0),0)} unidades</small></div>`}).join('')||'<p class="muted">Nenhum contêiner cadastrado nesta filial.</p>'}</div></div>`};
+ const showBranch=branch=>{selectedBranchId=branch.id;root.innerHTML=branchPanel(branch);$('heading').textContent=branch.nome||'Filial';$('backBranches').onclick=()=>{selectedBranchId=null;render()}};
+ if(tab==='Dashboard'){
+   $('heading').textContent='Filiais';
+   const selected=branches.find(x=>x.id===selectedBranchId);
+   if(selected){showBranch(selected);return}
+   root.innerHTML=`<div class="panel"><div class="admin-section-head"><div><h2>Filiais cadastradas</h2><p class="muted">Selecione uma filial para consultar seus contêineres e estoques.</p></div></div><div class="branch-list">${branches.map(x=>`<button type="button" class="branch-choice" data-branch="${esc(x.id)}"><span><strong>${esc(x.nome||x.codigo||x.id)}</strong><small>${x.active===false?'Inativa':'Ativa'}</small></span><span aria-hidden="true">›</span></button>`).join('')||'<p class="muted">Nenhuma filial cadastrada.</p>'}</div></div>`;
+   root.querySelectorAll('[data-branch]').forEach(btn=>btn.onclick=()=>{const branch=branches.find(x=>x.id===btn.dataset.branch);if(branch)showBranch(branch)});return;
+ }
  if(tab==='Auditoria'){root.innerHTML='<div class="panel"><h2>Auditoria</h2><p>Os registros de auditoria ficam no backend. A consulta detalhada requer uma rota paginada.</p></div>';return}
  if(tab==='Movimentações'){root.innerHTML=`<div class="panel">${table(['Data','Contêiner','Produto','Tipo','Quantidade'],movements.sort((a,b)=>b.at-a.at).slice(0,200).map(m=>cell(new Date(m.at).toLocaleString('pt-BR'),containers.find(c=>c.id===m.containerId)?.nome,m.productId,m.type,m.quantity)))}</div>`;return}
  if(tab==='Levantamentos'){root.innerHTML=`<div class="panel">${table(['Data','Contêiner','Situação','Ação'],counts.map(c=>`<tr>${[new Date(c.at).toLocaleString('pt-BR'),containers.find(x=>x.id===c.containerId)?.nome,c.status].map(x=>`<td>${esc(x)}</td>`).join('')}<td>${c.status==='pending'?`<button data-approve="${esc(c.id)}">Marcar revisão</button>`:'—'}</td></tr>`))}</div>`;root.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{try{await call('adminApproveCount',{id:b.dataset.approve});await load()}catch(e){message(e.message)}});return}
@@ -91,4 +99,4 @@ $('showAdmin').onclick=()=>{const open=$('adminLogin').hidden;$('adminLogin').hi
 $('operatorLogin').onsubmit=async e=>{e.preventDefault();const btn=e.currentTarget.querySelector('button');btn.disabled=true;try{const p=Object.fromEntries(new FormData(e.currentTarget));const {token}=await call('loginViewer',p);await signInWithCustomToken(auth,token)}catch(err){message(err.message,true)}finally{btn.disabled=false}};
 $('adminLogin').onsubmit=async e=>{e.preventDefault();const btn=e.currentTarget.querySelector('button');btn.disabled=true;try{const p=Object.fromEntries(new FormData(e.currentTarget));await signInWithEmailAndPassword(auth,p.email,p.password)}catch(err){message('Credenciais administrativas inválidas',true)}finally{btn.disabled=false}};
 $('logout').onclick=()=>signOut(auth);
-onAuthStateChanged(auth,async user=>{if(!user){role=null;$('workspace').hidden=true;$('login').hidden=false;return}try{const token=await user.getIdTokenResult();role=token.claims.walpRole==='viewer'?'viewer':'admin';tab='Dashboard';await load();$('login').hidden=true;$('workspace').hidden=false;message('',true)}catch(err){message(err.message,true);await signOut(auth)}});
+onAuthStateChanged(auth,async user=>{if(!user){role=null;$('workspace').hidden=true;$('login').hidden=false;return}try{const token=await user.getIdTokenResult();role=token.claims.walpRole==='viewer'?'viewer':'admin';tab='Dashboard';selectedBranchId=null;await load();$('login').hidden=true;$('workspace').hidden=false;message('',true)}catch(err){message(err.message,true);await signOut(auth)}});
