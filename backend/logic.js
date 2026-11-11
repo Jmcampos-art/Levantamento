@@ -70,15 +70,20 @@ const api=async(req,res)=>{try{
    if(!claim.committed)throw fail(409,'Esta movimentação já foi enviada. Atualize o estoque antes de tentar novamente.');
    let before=0,after=0;
    try{
+     // O SDK pode chamar o callback inicialmente com null mesmo quando o produto existe.
+     // Usa a leitura validada para a primeira proposta; o servidor reexecuta
+     // o callback com o valor atual se houver conflito.
+     const initialProduct=snapshot.val();
      const tx=await pRef.transaction(v=>{
-       if(!v||v.containerId!==who.containerId)return;
-       const raw=v.quantidade;
+       const current=v===null?initialProduct:v;
+       if(!current||current.containerId!==who.containerId)return;
+       const raw=current.quantidade;
        const qty=raw===null||raw===undefined||raw===''?0:Number(raw);
        if(!Number.isSafeInteger(qty)||qty<0)return;
        const next=type==='entrada'?qty+amount:qty-amount;
        if(!Number.isSafeInteger(next)||next<0)return;
        before=qty;after=next;
-       return {...v,quantidade:next,updatedAt:now()};
+       return {...current,quantidade:next,updatedAt:now()};
      });
      if(!tx.committed){const latest=await pRef.get();if(!latest.exists()||latest.val().containerId!==who.containerId)throw fail(403,'Produto inválido para este contêiner');const current=Number(latest.val().quantidade??0);if(!Number.isSafeInteger(current)||current<0)throw fail(409,'Quantidade cadastrada inválida. Corrija pelo levantamento.');if(type==='saida'&&current<amount)throw fail(409,'Estoque insuficiente para esta saída');throw fail(409,'Não foi possível atualizar o estoque. Tente novamente.');}
      const movement={id:requestId,containerId:who.containerId,branchId:who.container.branchId,productId,type,quantity:amount,before,after,at:now(),note:clean(payload.note).slice(0,300),source:'codigo-conteiner'};
@@ -118,7 +123,8 @@ const api=async(req,res)=>{try{
    const who=await viewer(req),productId=clean(payload.productId),quantity=Number(payload.quantity);
    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(productId)||!Number.isSafeInteger(quantity)||quantity<0||quantity>1000000)throw fail(400,'Dados do levantamento inválidos');
    const ref=db.ref('catalogo/'+productId);let before=0;
-   const tx=await ref.transaction(p=>{if(!p||p.containerId!==who.containerId)return;before=Number(p.quantidade||0);return {...p,quantidade:quantity,updatedAt:now()}});
+   const initial=await ref.get();if(!initial.exists()||initial.val().containerId!==who.containerId)throw fail(403,'Produto não pertence ao contêiner');
+   const tx=await ref.transaction(p=>{const current=p===null?initial.val():p;if(!current||current.containerId!==who.containerId)return;before=Number(current.quantidade||0);return {...current,quantidade:quantity,updatedAt:now()}});
    if(!tx.committed)throw fail(403,'Produto não pertence ao contêiner');
    const id=uid(),at=now();
    await db.ref().update({['levantamentos/'+id]:{id,containerId:who.containerId,branchId:who.container.branchId,productId,before,after:quantity,at,status:'completed',source:'codigo-conteiner'},['movimentacoes/'+id]:{id,containerId:who.containerId,branchId:who.container.branchId,productId,type:'levantamento',quantity:quantity-before,before,after:quantity,at,source:'codigo-conteiner'}});
